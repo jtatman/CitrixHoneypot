@@ -121,6 +121,10 @@ Also a `NSC_*` cookie / `NSxx: Build y.z` string check (`FIRMWARE_PATTERNS`, `HE
 paths (`MISCONFIG_PATHS`: `/menu/neo`, `/nitro/v1/config/*`, `/gui/`, `/nsconfig/ns.conf`) must NOT look present/unauthenticated on a clean profile.
 Also known: the CISA checker only matches the body text `You don't have permission to access /vpns/` (status ignored); nuclei needs status 200 + `[global]`.
 
+**Scanner behaviour research: see `docs/SCANNER_SURFACE.md`** (vigolium, katana, nuclei Citrix templates with per-CVE request and match conditions).
+Key takeaways: vigolium has no Citrix modules of its own (its known-issue-scan embeds nuclei) but drops hosts that show a NetScaler WAF fingerprint on 403/429
+(`Cneonction`/`nnCoection`, `NSC_` cookies); unknown paths currently return 200 (soft-404 problem); login page lacks Citrix JS markers katana/wappalyzer use.
+
 **Phase 3 - Recent Citrix vulnerability surfaces** (candidate list from memory of public advisories - verify each against NVD/Citrix bulletins/public
 scanner templates such as nuclei/watchTowr before implementing)
 - CVE-2019-19781 (done; extend), CVE-2020-8193/8195/8196 (unauth `/pcidss/report`, `/menu/stapi`, `/rapi/filedownload`)
