@@ -35,7 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `X-NITRO-USER`/`X-NITRO-PASS`/`rand_key` header telemetry and a corrected HTTP 406 status for the CVE-2020-8193 family's detection oracle
 * Opt-in AppFirewall/WAF-mimicry layer (`core/routes/waf_block.py`, `waf-mimicry` profile feature, new `adc-14.1-73.33-waf` profile):
   generic SQLi/XSS/command-injection/traversal signatures get a plausible 403 + `NS Transaction ID` block instead of silent 200/404,
-  without shadowing any specific CVE/IOC route
+  without shadowing any specific CVE/IOC route. Live-tested against katana (unaffected) and vigolium's known-issue-scan (the predicted
+  scanner back-off did not occur; see docs/SCANNER_SURFACE.md)
 
 ### Changed
 

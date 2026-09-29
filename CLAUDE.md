@@ -196,13 +196,19 @@ vigolium's own WAF detector (`pkg/deparos/waf/detector.go`, `citrixNetscalerRule
 `cve_2019_19781`'s own broad catch-alls (root-path login, "any POST" payload logging) so generic attack noise on those paths gets
 blocked realistically instead of silently absorbed -- but with an explicit carve-out so it never shadows `cve_2019_19781`'s own,
 more specific `/vpn/../vpns/...` traversal handling. Every CVE/IOC route is still tried first and always wins on overlap.
-**Trade-off, deliberately not the default**: vigolium's own known-issue-scan treats that exact 403+marker signature as "this host is
-already filtering -- drop it, don't scan further" (see docs/SCANNER_SURFACE.md). Enabling it makes the honeypot look more
-convincing to a human/skilled attacker at the cost of possibly disengaging some automated scanners early -- and even a scanner that
-backs off has still been captured up to that point (the block event itself, with which signature tripped it, is the useful
-signal); it's not a wash, just a different flavour of the same "capture the attempt" job as everything else in Phase 3. Off by
-default on every other profile; select `adc-14.1-73.33-waf` explicitly to test against it. The signature list (sqli/xss/cmdi/
-traversal) is a small illustrative subset in the spirit of OWASP CRS's classic rules, not an exhaustive WAF ruleset.
+**Predicted trade-off, live-tested 2026-09-29, did NOT manifest**: the concern was vigolium's own known-issue-scan treating that exact
+403+marker signature as "this host is filtering -- back off" (its `citrixNetscalerRule()` detector, read from that repo). Re-run
+against `adc-14.1-73.33-waf`: it made *more* requests (28,710 vs. baseline's 24,000+) over a *longer* run (8m59s vs. 7m33s), with the
+WAF layer firing 8,003 times (correctly classified: 6,914 traversal/808 sqli/160 cmdi/121 xss) and zero mention of WAF/edge/pacing in
+vigolium's console output. Why: `pkg/knownissuescan/runner.go`'s own comments say that phase runs nuclei as an in-process library with
+its own HTTP client, outside `pkg/http.Requester` -- the component the WAF detector is actually wired into (vigolium's *native*
+discovery/dynamic-assessment phases). So the risk was real for how the detector is built, just not reachable from nuclei-driven
+scanning specifically. katana's crawl was unaffected either way (WAF layer correctly silent on its non-attack-looking traffic). Net
+effect observed: realism + a rich, correctly-classified block-event signal, at no measured cost to this scanner's engagement. Not
+tested against vigolium's native scan phases (where the detector is actually reachable) or any scanner that does implement WAF-aware
+back-off -- see docs/SCANNER_SURFACE.md for the full writeup. Off by default on every other profile; select `adc-14.1-73.33-waf`
+explicitly. The signature list (sqli/xss/cmdi/traversal) is a small illustrative subset in the spirit of OWASP CRS's classic rules,
+not an exhaustive WAF ruleset.
 
 **Phase 4 - Outputs and local-lab ergonomics**
 - Implement sqlite (schema file is missing: `docs/sql/sqlite3.sql`), plain JSONL to stdout, optional Elasticsearch/syslog. Remove GeoIP by default.

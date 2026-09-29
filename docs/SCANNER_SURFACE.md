@@ -98,19 +98,31 @@ CVE routes, all detection oracles (canned/random data, never real memory or expl
   sent -- corroborated independently by Zeop-CyberSec/citrix_adc_netscaler_lfi's Metasploit module, not just nuclei. Fixed versions verified
   against NVD (not from citrixscan's table).
 
-## WAF mimicry (opt-in) and the vigolium back-off trade-off
+## WAF mimicry (opt-in) -- live-tested, the predicted vigolium back-off did NOT happen
 
 `core/routes/waf_block.py` (profile feature `waf-mimicry`, profile `adc-14.1-73.33-waf`) mocks Citrix AppFirewall's *observable shape*
 (403 + `NS Transaction ID` body) for generic SQLi/XSS/command-injection/traversal-looking requests not already claimed by a specific
 CVE/IOC route -- prompted by a user discussion: a honeypot with zero filtering on textbook attack strings is itself a tell to anyone
 past the script-kiddie stage, and capturing *intent-revealing* traffic is the actual point, which a believable "you got blocked, try
 something smarter" response encourages rather than a flat wall. The fingerprint is deliberately exact: it's vigolium's own WAF
-detector's signature (see the "Tools" section above, `citrix_netscaler` rule) -- 403/429 + `Cneonction`/`NSC_*` (already sent by these
-profiles) + `NS Transaction ID` in the body. That's also the trade-off: vigolium's `known-issue-scan` phase drops hosts matching that
-exact signature rather than scanning them further, so this feature can reduce automated-scanner follow-through in exchange for
-looking authentic to a human. Not the default; a scanner that backs off after tripping it is still fully captured up to that point
-(the block event logs which signature fired), so it's a different flavour of "capture the attempt", not a loss. Not yet re-tested
-live against vigolium/katana with this feature on.
+detector's signature (`pkg/deparos/waf/detector.go`, `citrixNetscalerRule()`) -- 403/429 + `Cneonction`/`NSC_*` (already sent by these
+profiles) + `NS Transaction ID` in the body.
+
+**Predicted trade-off, tested 2026-09-29, did not manifest for a nuclei-driven scan.** katana's passive crawl was unaffected (identical
+2 paths, same Citrix tech-detection, WAF layer correctly silent on benign traffic -- as expected). The real question was vigolium's
+`known-issue-scan`: re-run against `adc-14.1-73.33-waf`, it made **more** total requests (28,710 vs. the earlier non-WAF baseline's
+24,000+) over a **longer** run (8m59s vs. 7m33s), while the WAF layer fired 8,003 times (6,914 traversal / 808 sqli / 160 cmdi / 121
+xss -- correct signature classification throughout). Nothing in vigolium's console output mentioned a WAF, edge, filtering, or pacing.
+
+**Why, and this is grounded in vigolium's own source read earlier this session, not speculation**: `pkg/knownissuescan/runner.go`'s own
+comments say known-issue-scan is "the one active phase whose traffic does NOT go through `pkg/http.Requester`... That left it outside
+everything the shared requester provides -- per-host AIMD back-off ... proactive pacing when a CDN/WAF edge is fingerprinted." nuclei
+runs as an in-process library with its own HTTP client during that phase, architecturally unable to consult the `citrixNetscalerRule()`
+detector, which is wired into the shared requester used by vigolium's *native* scan phases (discovery, dynamic-assessment) instead. So
+the theoretical risk was real for a tool built the way I read it to be built, but for THIS tool's THIS scan mode it's a non-issue: the
+feature adds realism and a rich block-event signal (8,003 of them, correctly classified) at effectively no cost to scanner engagement.
+Not yet tested against vigolium's native dynamic-assessment phase specifically (where the detector actually is wired in), or against
+any other scanner that does implement WAF-aware back-off -- the trade-off may still be real elsewhere, just not observed here.
 
 ## GitHub survey, 2026-09-29 (two background research passes, ~59 repos catalogued across 2010-2026)
 
