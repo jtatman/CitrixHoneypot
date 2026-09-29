@@ -1,0 +1,119 @@
+# CLAUDE.md
+
+Guidance for Claude Code when working in this repo.
+
+## Purpose
+
+Fork of Bontchev's/MalwareTech's CitrixHoneypot (Twisted HTTPS server emulating a Citrix ADC/Gateway, originally only CVE-2019-19781).
+Goal of this fork: a **local-network-only test bed** that imitates recent NetScaler ADC / Gateway (and related Citrix) web surfaces, so
+scanners and exploit tooling for recent Citrix CVEs can be observed and logged safely.
+
+Ground rules:
+- Emulate *observable behavior* (routes, status codes, headers, response bodies, fingerprints). Never ship working exploit code or
+  real payload execution. Attacker input is only ever parsed, logged, and answered with canned responses.
+- Never execute, `eval`, shell out with, or write to disk anything derived from request data.
+- Bind to a configured local interface; no outbound calls are needed or allowed (no GeoIP downloads, no public-IP lookup).
+- Any CVE/route detail added must be traceable to a public advisory or public scanner (cite URL in a comment). Verify before adding; don't guess.
+
+## Layout
+
+```
+CitrixHoneypot.py      entry point: argparse + config, Twisted SSL endpoint, Site(Index)
+core/protocol.py       Index(Resource): ALL request handling (HEAD/GET/POST), page cache, response headers
+core/tools.py          helpers: url normalisation, IP helpers, event writing, plugin loading
+core/config.py         ConfigParser + env-var override (SECTION_OPTION), reads etc/honeypot.cfg.base, etc/honeypot.cfg, ./honeypot.cfg
+core/logfile.py        Twisted daily log file + UTC formatting (monkeypatches FileLogObserver)
+core/output.py         Output plugin base class
+output_plugins/        jsonlog.py (works), mysql.py (works, needs mysqlclient), sqlite.py (EMPTY stub)
+responses/             static bodies: login.html, 403.html, smb.conf, gold_star.html
+etc/                   honeypot.cfg.base (defaults, do not edit), honeypot-launch.cfg.base
+bin/honeypot           start/stop wrapper (venv + authbind)
+ssl/                   expects key.pem + cert.pem (gitignored; generation in docs/INSTALL.md)
+```
+
+Event dict schema (consumed by all plugins): `eventid` (`citrix.connection` | `citrix.payload`), `timestamp`, `unixtime`, `src_ip`,
+`src_port`, `dst_ip`, `dst_port`, `sensor`, `request`, `url`, `message`, and for payloads `body`, `payload`. Keep it backward compatible
+(MySQL schema in `docs/sql/mysql.sql`) or version it.
+
+## Run / test
+
+```
+pip install -r requirements.txt      # see "Known issues" - requirements are stale
+openssl req -x509 -newkey rsa:2048 -nodes -keyout ssl/key.pem -out ssl/cert.pem -days 365 -subj /CN=localhost
+python CitrixHoneypot.py -a 127.0.0.1 -p 8443
+curl -sk 'https://127.0.0.1:8443/vpn/../vpns/cfg/smb.conf'   # note: use --path-as-is
+```
+There is **no test suite and no CI**. Add pytest tests (use `twisted.web.test.requesthelper.DummyRequest` or `treq`) with any change to routing.
+Config precedence: env var `SECTION_OPTION` > `honeypot.cfg` > `etc/honeypot.cfg.base`.
+Run from repo root: `responses/` and `etc/` are opened via relative paths.
+
+## Code review findings (current state, as of code review)
+
+Stack: Python 3 (py2 compat cruft remains), Twisted `Resource` with `isLeaf=True`, single 250-line request handler.
+CVE-2019-19781 only; the Citrix fingerprint is thin and dated.
+
+Bugs:
+1. `core/protocol.py` `render_GET`: `if self.struggle_check(...): self.send_response(...)` has no `return` - falls through and sends twice/continues.
+2. `render_POST`: `parse_qs(body)['title'][0]` raises `KeyError` on any POST without `title` (500 + lost event); `int(Content-Length)` and
+   `.decode('utf-8')` unguarded (non-UTF8 body crashes). Every POST with a body is logged as `citrix.payload`/"Exploit" regardless of path.
+3. `send_response`: repeated `setHeader('Set-Cookie', ...)` **overwrites** - only the last cookie is sent. Needs `addRawHeader`/`cookies`.
+   Also `Content-Length` is `len(str)` (chars, not bytes), and `Server: Apache` is not what NetScaler sends.
+4. Typo `'WARNINg'` log level (type 3 scan). Type 3 (`services.html`) serves `smb.conf` body - probably wrong.
+5. `render_HEAD` and `render_GET` duplicate ~50 lines of event building; `render()` maps *all* other methods (PUT/DELETE/custom) to GET.
+6. `get_page` uses relative `responses/` path and a class-level dict cache (`page_cache` keys hard-coded).
+7. `tools.getutctime`/`logfile.myFLOformatTime` use `datetime.utcfromtimestamp` (deprecated in 3.12, removed later) - use `datetime.fromtimestamp(t, timezone.utc)`.
+8. `tools.get_real_ip/port` trust `X-Real-IP` / `X-Real-Port` from *any* client (spoofable). Fine only if behind a trusted proxy; make opt-in.
+9. Logging `request.uri` raw: log-injection risk (newlines) in text log; sanitise/escape.
+10. `logfile.py` monkeypatches Twisted internals (`FileLogObserver.emit/formatTime`) - fragile across Twisted versions.
+
+Packaging / ops:
+- `requirements.txt`: `setuptools<45` pin, `configparser>=3.5` (py2 backport), unused `geoip2`/`maxminddb` (MySQL plugin only), mysqlclient mandatory
+  for install though optional at runtime. No lockfile / `pyproject.toml`.
+- `Dockerfile`: unpinned `FROM python`, runs as root, no non-root port strategy, copies whole repo.
+- `output_plugins/sqlite.py` is an empty stub; `etc/honeypot.cfg.base` and `docs/TODO.md` list elasticsearch/textlog/hpfeeds as unimplemented.
+- Python 2 shims (`try: urllib.parse except ImportError`, `from __future__`) can go.
+- Licence is the joke "MalwareTech Public Licence"; keep the header intact.
+
+Fingerprint fidelity gaps (why modern scanners/Shodan-style checks won't treat this as NetScaler):
+- Static cookie set with 1999 expiry, `Server: Apache`, no `Via`/`Cache-control` combos real ADC sends, login page is a 2019 stub with no
+  `/vpn/index.html` assets (`/vpn/js/...`, `/logon/LogonPoint/...`), no version strings, no `/vpn/pluginlist.xml`, no favicon/`Citrix-Gateway` title.
+- Single TLS cert story; no configurable cipher/TLS version profile.
+
+## Modernization roadmap (proposed - confirm with the user before starting each phase)
+
+**Phase 0 - Hygiene (no behavior change intended, except bug fixes above)**
+- Add `pyproject.toml`, drop py2 shims, pin sane minimums (Twisted>=24, pyOpenSSL, cryptography); make mysqlclient/geoip optional extras.
+- Fix bugs 1-6, add pytest + ruff + GitHub Actions; pin Docker base (`python:3.12-slim`), non-root user, `CAP_NET_BIND_SERVICE` or high port.
+- Golden-file tests for the existing CVE-2019-19781 responses so refactors can't regress them.
+
+**Phase 1 - Refactor to a route table**
+- Replace the if/elif chain with a declarative registry: `Route(method, matcher, cve, handler)` in `core/routes/` (one module per CVE/product family).
+- Normalise once (percent-decode, collapse `../`, lowercase where NetScaler does) and hand handlers a parsed request object; centralise event emission.
+- Event schema v2: add `cve`, `route_id`, `matched` (bool), `headers` (allow-listed), `body_sha256`, `body_b64` (size-capped). Keep old fields.
+
+**Phase 2 - Profile system ("imitate version X")**
+- `profiles/<name>.yaml` declares product, build string, headers, cookie set (proper multi-Set-Cookie), TLS cert subject/CN, login page assets, which
+  routes are *vulnerable-looking* vs *patched-looking* for that build. Select via `honeypot.cfg` `profile = adc-13.1-49`.
+- Lets one test bed emulate pre- and post-patch builds of the same CVE to test scanner discrimination.
+
+**Phase 3 - Recent Citrix vulnerability surfaces** (candidate list from memory of public advisories - verify each against NVD/Citrix bulletins/public
+scanner templates such as nuclei/watchTowr before implementing)
+- CVE-2019-19781 (done; extend), CVE-2020-8193/8195/8196 (unauth `/pcidss/report`, `/menu/stapi`, `/rapi/filedownload`)
+- CVE-2022-27510 / 27518 (Gateway auth bypass, `/cgi/setclient`, SAML/`/vpn/` endpoints)
+- CVE-2023-3519 (gateway RCE; probe paths like `/gwtest/formssso`, `/logon/LogonPoint/`)
+- CVE-2023-4966 "CitrixBleed" (`/oauth/idp/.well-known/openid-configuration`, oversized `Host` header -> canned *fake* leak, never real memory)
+- CVE-2023-6548/6549 (management interface), CVE-2024-8534/8535
+- CVE-2025-5777 "CitrixBleed 2" (`POST /p/u/doAuthentication.do` with valueless `login`), CVE-2025-6543, CVE-2025-7775
+- Other products if useful: StoreFront, Citrix Virtual Apps/ADM/SD-WAN and NetScaler Console management UIs (separate profiles, separate ports).
+For each: log a `scan` vs `exploit_attempt` classification, respond with a canned vulnerable-looking body, and never process attacker payloads.
+
+**Phase 4 - Outputs and local-lab ergonomics**
+- Implement sqlite (schema file is missing: `docs/sql/sqlite3.sql`), plain JSONL to stdout, optional Elasticsearch/syslog. Remove GeoIP by default.
+- Optional plain-HTTP listener, multiple ports (443, 8443, 3010 mgmt), `--profile` and `--tls-profile` CLI flags, health endpoint on localhost only.
+- docker-compose with a network-isolated lab (`internal: true` network) to guarantee no egress.
+
+## Conventions
+- Python 3.10+, type hints on new code, `ruff`/`black` defaults, 4-space indent; match surrounding style in files you don't refactor.
+- New routes ship with a pytest case that replays a public scanner request (fixtures in `tests/fixtures/`).
+- Update `CHANGELOG.md` (Keep a Changelog) and bump `__VERSION__` in `CitrixHoneypot.py` and `LABEL version` in `Dockerfile` together.
+- Don't edit `etc/*.base` defaults casually; new options go there with comments.
