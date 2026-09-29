@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Control characters in logged request paths are escaped
 * Replaced deprecated `datetime.utcfromtimestamp`
 
+### Added
+
+* Appliance profiles (`profiles/*.yaml`, `--profile`): product/build, headers, cookies, login page, TLS CN, per-CVE vulnerable/patched/off
+* CVE state derived from the profile's `build` using a vendored fix-version table (`core/data/cves.json`, from citrixscan)
+* Automatic self-signed certificate generation; `patched` and `profile` fields on events; HTTP status codes on responses
+
 ### Changed
 
 * Request handling refactored into a route table (`core/routes/`); events gain `cve` and `route_id` fields

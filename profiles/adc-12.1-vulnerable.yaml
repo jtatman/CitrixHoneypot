@@ -1,0 +1,11 @@
+# Legacy behaviour of this honeypot: an unpatched appliance for CVE-2019-19781.
+# Header/cookie values are carried over from the original honeypot, NOT verified against a real 12.1 build.
+name: adc-12.1-vulnerable
+product: NetScaler ADC
+build: "12.1-50.28"
+server_header: Apache
+login_page: login.html
+tls:
+  subject_cn: localhost
+# cves:                          # optional overrides: vulnerable | patched | off
+#   CVE-2019-19781: vulnerable   # by default derived from `build` (core/data/cves.json)

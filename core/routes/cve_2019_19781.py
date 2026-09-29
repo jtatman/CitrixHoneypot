@@ -35,7 +35,7 @@ def _gold_star():
     return 'gold_star.html'
 
 
-@route('struggle', lambda c: _get_like(c) and _struggle(c), cve=CVE)
+@route('struggle', lambda c: _get_like(c) and _struggle(c))
 def struggle(ctx):
     return Hit('DEBUG', 'Detected a failed directory traversal attempt.', page=_gold_star())
 
@@ -45,7 +45,7 @@ def struggle(ctx):
     or (len(c.raw_segments) == 1 and c.raw_segments[0] == 'vpn')
     or (len(c.raw_segments) == 2 and c.raw_segments[0] == 'vpn' and c.raw_segments[1].lower().startswith('index.htm'))))
 def login(ctx):
-    return Hit(page='login.html')
+    return Hit(page=ctx.profile.login_page)
 
 
 # --- POST -------------------------------------------------------------------
@@ -62,7 +62,7 @@ def payload(ctx):
                event={'request': 'POST', 'message': 'Exploit', 'body': ctx.body, 'payload': payload})
 
 
-@route('post-struggle', lambda c: c.method == 'POST' and _struggle(c), cve=CVE)
+@route('post-struggle', lambda c: c.method == 'POST' and _struggle(c))
 def post_struggle(ctx):
     return Hit('DEBUG', 'Detected a failed directory traversal attempt.', page=_gold_star())
 

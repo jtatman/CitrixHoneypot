@@ -4,3 +4,4 @@ Twisted[tls]>=24.3
 pyOpenSSL>=24.0
 cryptography>=42
 service_identity>=24.1
+PyYAML>=6

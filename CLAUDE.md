@@ -20,6 +20,10 @@ Ground rules:
 ```
 CitrixHoneypot.py      entry point: argparse + config, Twisted SSL endpoint, Site(Index)
 core/protocol.py       Index(Resource): single render() entry point: build Ctx -> dispatch routes -> log/emit event -> respond
+core/profile.py        Profile dataclass + YAML loader/validator; `Profile.state(cve)` = explicit override > derived from `build` > vulnerable
+core/cvedb.py          fix-version lookup over core/data/cves.json (25 CVEs, vendored from jtatman/citrixscan via tools/extract_cves.py)
+core/tls.py            ensure_cert(): self-signed key/cert generated at startup if missing (CN from the profile)
+profiles/              <name>.yaml appliance profiles (select with `--profile` / `[honeypot] profile` / env HONEYPOT_PROFILE)
 core/routes/           declarative route table (Route/Hit/Ctx in __init__.py; one module per CVE/product family, e.g. cve_2019_19781.py)
 tests/                 pytest golden tests driving Index.render() with DummyRequest (run from anywhere; conftest chdirs to repo root)
 core/tools.py          helpers: url normalisation, IP helpers, event writing, plugin loading
@@ -101,10 +105,21 @@ Fingerprint fidelity gaps (why modern scanners/Shodan-style checks won't treat t
 - Normalise once (percent-decode, collapse `../`, lowercase where NetScaler does) and hand handlers a parsed request object; centralise event emission.
 - Event schema v2: add `cve`, `route_id`, `matched` (bool), `headers` (allow-listed), `body_sha256`, `body_b64` (size-capped). Keep old fields.
 
-**Phase 2 - Profile system ("imitate version X")**
+**Phase 2 - Profile system ("imitate version X") (DONE: product/build, server header, extra headers, cookies, login page, TLS CN, per-CVE vulnerable/patched/off derived from build; patched = still logged, `patched: true` in event, profile's patched_response served. NOT done: real per-build header/cookie/asset data, gzip MTIME fingerprint)**
 - `profiles/<name>.yaml` declares product, build string, headers, cookie set (proper multi-Set-Cookie), TLS cert subject/CN, login page assets, which
   routes are *vulnerable-looking* vs *patched-looking* for that build. Select via `honeypot.cfg` `profile = adc-13.1-49`.
 - Lets one test bed emulate pre- and post-patch builds of the same CVE to test scanner discrimination.
+
+**Fingerprint surface to serve (from jtatman/citrixscan, a defensive scanner; MIT; it has version->CVE data but no exploit request examples)**
+Scanner probe paths the honeypot should answer like a NetScaler for it to be recognised, then classified by build (Phase 3 prerequisite):
+`/vpn/index.html`, `/logon/LogonPoint/index.html`, `/cgi/login`, `/nf/auth/doAuthentication.do`, `/oauth/idp/.well-known/openid-configuration`,
+`/saml/login`, `/metadata/saml/idp`, `/nitro/v1/config/nsversion`, `/vpn/pluginlist.xml`, `/vpn/js/gateway_login_view.js`,
+`/logon/LogonPoint/custom/strings.en.js`, `/epatype`, `/vpn/versioninfo.xml`, `/epa/scripts/win/nsepa_setup.exe`.
+Highest-value item: `/vpn/js/rdx/core/lang/rdx_en.json.gz` - the gzip MTIME header field is how scanners (Fox-IT technique) map a host to an exact
+build; serve a gzip whose MTIME matches the profile's `build` (citrixscan has a 228-entry timestamp table in `RDX_EN_STAMP_TO_VERSION`).
+Also a `NSC_*` cookie / `NSxx: Build y.z` string check (`FIRMWARE_PATTERNS`, `HEADER_PATTERNS`). IoC/webshell paths (`IOC_PATHS`) and management
+paths (`MISCONFIG_PATHS`: `/menu/neo`, `/nitro/v1/config/*`, `/gui/`, `/nsconfig/ns.conf`) must NOT look present/unauthenticated on a clean profile.
+Also known: the CISA checker only matches the body text `You don't have permission to access /vpns/` (status ignored); nuclei needs status 200 + `[global]`.
 
 **Phase 3 - Recent Citrix vulnerability surfaces** (candidate list from memory of public advisories - verify each against NVD/Citrix bulletins/public
 scanner templates such as nuclei/watchTowr before implementing)

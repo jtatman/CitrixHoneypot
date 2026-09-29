@@ -4,7 +4,7 @@ A Route pairs a ``match`` predicate with a ``handle`` function returning a Hit.
 Routes are tried in registration order and the first match wins.
 Route modules register themselves with @route at import time.
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Callable, Dict, List, Optional
 from urllib.parse import unquote
 
@@ -22,9 +22,10 @@ class Ctx:
     traversal: bool           # ``/../`` present in ``path``
     body: str
     cfg: dict
+    profile: object = None    # core.profile.Profile the honeypot is currently impersonating
 
     @classmethod
-    def build(cls, method: str, uri: bytes, body: bytes, cfg: dict) -> 'Ctx':
+    def build(cls, method: str, uri: bytes, body: bytes, cfg: dict, profile=None) -> 'Ctx':
         path = unquote(uri.decode('utf-8', 'replace'))
         traversal = path.find('/../') != -1
         collapsed = tools.resolve_url(path) if traversal else path
@@ -37,6 +38,7 @@ class Ctx:
             traversal=traversal,
             body=body.decode('utf-8', 'replace'),
             cfg=cfg,
+            profile=profile,
         )
 
 
@@ -49,6 +51,7 @@ class Hit:
     subst: Dict[str, str] = field(default_factory=dict)   # {name} -> value replacements in the page
     event: Optional[Dict] = None   # extra fields merged into the base event; None = no event
     eventid: str = 'citrix.connection'
+    status: int = 200
 
 
 @dataclass
@@ -71,10 +74,22 @@ def route(id, match, cve=None):
 
 
 def dispatch(ctx: Ctx):
-    """Return (route, hit) for the first matching route, or (None, Hit())."""
+    """Return (route, hit) for the first matching route, or (None, Hit()).
+
+    Profile CVE states: 'off' skips the route; 'patched' keeps the logging/event but swaps the response
+    for the profile's patched response, so attempts are still recorded.
+    """
+    prof = ctx.profile
     for r in ROUTES:
-        if r.match(ctx):
-            return r, r.handle(ctx)
+        state = prof.state(r.cve) if (prof and r.cve) else 'vulnerable'
+        if state == 'off' or not r.match(ctx):
+            continue
+        hit = r.handle(ctx)
+        if state == 'patched':
+            event = dict(hit.event, patched=True) if hit.event is not None else None
+            hit = replace(hit, page=prof.patched_page, subst={'url': ctx.collapsed}, status=prof.patched_status,
+                          event=event)
+        return r, hit
     return None, Hit()
 
 

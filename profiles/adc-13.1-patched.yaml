@@ -1,0 +1,14 @@
+# Same surface, but CVE-2019-19781 is fixed: probes are still logged but get a not-found response.
+# The patched response (status/page) is an approximation, not verified against a real patched build.
+name: adc-13.1-patched
+product: NetScaler ADC
+build: "13.1-49.13"
+server_header: Apache
+login_page: login.html
+tls:
+  subject_cn: localhost
+# cves:                          # optional overrides: vulnerable | patched | off
+#   CVE-2019-19781: patched      # by default derived from `build` (core/data/cves.json)
+patched_response:
+  status: 404
+  page: 404.html

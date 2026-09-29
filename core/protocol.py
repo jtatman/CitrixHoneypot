@@ -4,28 +4,11 @@ from time import time
 from twisted.web.resource import Resource
 
 from core import tools
+from core.profile import load_profile
 from core.routes import Ctx, dispatch
 
 RESPONSES_DIR = Path(__file__).resolve().parent.parent / 'responses'
 MAX_BODY = 1 << 20   # bytes of a request body we are willing to read/log
-
-# NetScaler-style cookies, sent expired; the duplicates are deliberate (as on the real appliance)
-COOKIES = [
-    'NSC_AAAC=xyz;Path=/;expires=Wednesday, 09-Nov-1999 23:12:40 GMT;Secure',
-    'NSC_EPAC=xyz;Path=/;expires=Wednesday, 09-Nov-1999 23:12:40 GMT;Secure',
-    'NSC_USER=xyz;Path=/;expires=Wednesday, 09-Nov-1999 23:12:40 GMT;Secure',
-    'NSC_TEMP=xyz;Path=/;expires=Wednesday, 09-Nov-1999 23:12:40 GMT;Secure',
-    'NSC_PERS=xyz;Path=/;expires=Wednesday, 09-Nov-1999 23:12:40 GMT;Secure',
-    'NSC_BASEURL=xyz;Path=/;expires=Wednesday, 09-Nov-1999 23:12:40 GMT;Secure',
-    'CsrfToken=xyz;Path=/;expires=Wednesday, 09-Nov-1999 23:12:40 GMT;Secure',
-    'CtxsAuthId=xyz;Path=/;expires=Wednesday, 09-Nov-1999 23:12:40 GMT;Secure',
-    'ASP.NET_SessionId=xyz;Path=/;expires=Wednesday, 09-Nov-1999 23:12:40 GMT;Secure',
-    'NSC_TMAA=xyz;Path=/;expires=Wednesday, 09-Nov-1999 23:12:40 GMT',
-    'NSC_TMAS=xyz;Path=/;expires=Wednesday, 09-Nov-1999 23:12:40 GMT;Secure',
-    'NSC_TEMP=xyz;Path=/;expires=Wednesday, 09-Nov-1999 23:12:40 GMT',
-    'NSC_PERS=xyz;Path=/;expires=Wednesday, 09-Nov-1999 23:12:40 GMT',
-]
-
 
 class Index(Resource):
     """Single entry point: normalise the request, dispatch to the route table, log, respond."""
@@ -34,13 +17,14 @@ class Index(Resource):
     def __init__(self, options):
         super().__init__()
         self.cfg = options
+        self.profile = options.get('profile') or load_profile()
         self._pages = {}
 
     def render(self, request):
         # Overrides Resource.render so that custom HTTP methods are handled too.
         method = request.method.decode('ascii', 'replace')
         raw = request.content.read(MAX_BODY) if method == 'POST' else b''
-        ctx = Ctx.build(method, request.uri, raw, self.cfg)
+        ctx = Ctx.build(method, request.uri, raw, self.cfg, self.profile)
 
         tools.logger(request, 'INFO', '{}: {}'.format(method, ctx.path))
         route, hit = dispatch(ctx)
@@ -50,6 +34,7 @@ class Index(Resource):
         if hit.event is not None:
             self.emit(request, ctx, route, hit)
 
+        request.setResponseCode(hit.status)
         page = self.get_page(hit.page) if hit.page else ''
         for key, value in hit.subst.items():
             page = page.replace('{' + key + '}', value)
@@ -70,6 +55,7 @@ class Index(Resource):
             'url': ctx.path,
             'cve': route.cve,
             'route_id': route.id,
+            'profile': self.profile.name,
         }
         event.update(hit.event)
         tools.write_event(event, self.cfg)
@@ -82,8 +68,10 @@ class Index(Resource):
 
     def send_response(self, request, page=''):
         body = page.encode('utf-8')
-        request.setHeader('Server', 'Apache')
-        for cookie in COOKIES:
+        request.setHeader('Server', self.profile.server_header)
+        for name, value in self.profile.headers.items():
+            request.setHeader(name, value)
+        for cookie in self.profile.cookies:
             request.responseHeaders.addRawHeader(b'Set-Cookie', cookie.encode())
         request.setHeader('Connection', 'Close')
         request.setHeader('Content-Length', str(len(body)))

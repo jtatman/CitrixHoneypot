@@ -43,6 +43,12 @@ log_path = log
 # (notset, debug, info, warning, error, or critical. default: info)
 #verbosity = info
 
+# Appliance profile to impersonate: a file profiles/<name>.yaml describing the
+# product/build, response headers and which CVEs look vulnerable or patched.
+#
+# (default: adc-12.1-vulnerable)
+#profile = adc-12.1-vulnerable
+
 # Set to True to detect failed directory traversal attempts and
 # reward our friendly failed hacker with a gold star!
 #
