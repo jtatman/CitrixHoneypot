@@ -98,6 +98,20 @@ CVE routes, all detection oracles (canned/random data, never real memory or expl
   sent -- corroborated independently by Zeop-CyberSec/citrix_adc_netscaler_lfi's Metasploit module, not just nuclei. Fixed versions verified
   against NVD (not from citrixscan's table).
 
+## WAF mimicry (opt-in) and the vigolium back-off trade-off
+
+`core/routes/waf_block.py` (profile feature `waf-mimicry`, profile `adc-14.1-73.33-waf`) mocks Citrix AppFirewall's *observable shape*
+(403 + `NS Transaction ID` body) for generic SQLi/XSS/command-injection/traversal-looking requests not already claimed by a specific
+CVE/IOC route -- prompted by a user discussion: a honeypot with zero filtering on textbook attack strings is itself a tell to anyone
+past the script-kiddie stage, and capturing *intent-revealing* traffic is the actual point, which a believable "you got blocked, try
+something smarter" response encourages rather than a flat wall. The fingerprint is deliberately exact: it's vigolium's own WAF
+detector's signature (see the "Tools" section above, `citrix_netscaler` rule) -- 403/429 + `Cneonction`/`NSC_*` (already sent by these
+profiles) + `NS Transaction ID` in the body. That's also the trade-off: vigolium's `known-issue-scan` phase drops hosts matching that
+exact signature rather than scanning them further, so this feature can reduce automated-scanner follow-through in exchange for
+looking authentic to a human. Not the default; a scanner that backs off after tripping it is still fully captured up to that point
+(the block event logs which signature fired), so it's a different flavour of "capture the attempt", not a loss. Not yet re-tested
+live against vigolium/katana with this feature on.
+
 ## GitHub survey, 2026-09-29 (two background research passes, ~59 repos catalogued across 2010-2026)
 
 Historical (pre-2022) and modern (2022-2026) passes via `firecrawl_search`/`firecrawl_scrape` (no GitHub API, per this session's repo-scope

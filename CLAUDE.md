@@ -24,7 +24,7 @@ core/profile.py        Profile dataclass + YAML loader/validator; `Profile.state
 core/cvedb.py          fix-version lookup over core/data/cves.json (25 CVEs, vendored from jtatman/citrixscan via tools/extract_cves.py)
 core/tls.py            ensure_cert(): self-signed key/cert generated at startup if missing (CN from the profile)
 profiles/              <name>.yaml appliance profiles (select with `--profile` / `[honeypot] profile` / env HONEYPOT_PROFILE)
-core/routes/           (order matters: the list in routes/__init__.py is match order, catch-alls last) declarative route table (Route/Hit/Ctx in __init__.py; one module per CVE/product family, e.g. cve_2019_19781.py; ioc_probes.py is CVE-agnostic attempt/IOC logging)
+core/routes/           (order matters: the list in routes/__init__.py is match order, catch-alls last) declarative route table (Route/Hit/Ctx in __init__.py; one module per CVE/product family, e.g. cve_2019_19781.py; ioc_probes.py is CVE-agnostic attempt/IOC logging; waf_block.py is the opt-in AppFirewall-mimicry catch-all, registered before cve_2019_19781's broad catch-alls but after everything CVE/IOC-specific)
 tests/                 pytest golden tests driving Index.render() with DummyRequest (run from anywhere; conftest chdirs to repo root)
 core/tools.py          helpers: url normalisation, IP helpers, event writing, plugin loading
 core/config.py         ConfigParser + env-var override (SECTION_OPTION), reads etc/honeypot.cfg.base, etc/honeypot.cfg, ./honeypot.cfg
@@ -184,6 +184,25 @@ All "DONE" memory-overread routes are detection oracles only: the "leaked" bytes
 Per-route `patched=` handlers matter here: a route with no explicit one falls back to a from-scratch not-found `Hit` on a patched build (see the
 `dispatch()` comment in `core/routes/__init__.py` - it must NOT `replace()` onto the vulnerable `Hit`, since `data`/`cookies`/`headers` would
 otherwise leak through unchanged even though `page`/`status` get overridden).
+
+**WAF mimicry (DONE, opt-in)** -- `core/routes/waf_block.py`, profile feature `waf-mimicry`, profile `adc-14.1-73.33-waf`.
+Real NetScaler ADC/Gateway ships an integrated WAF module (Citrix AppFirewall; see CVE-2015-2841, a real bug in it). A raw honeypot
+that never blocks textbook SQLi/XSS/command-injection-looking traffic is itself a tell past the "run a script and hope" stage of
+attacker, per a user discussion: capturing the *right* traffic (a targeted, intent-revealing probe) is the actual point of a
+honeypot, and a plausible generic-block layer is what makes an attacker keep sending that traffic instead of writing the host off in
+one request. Mocks only the *observable shape*: 403 + `NS Transaction ID` in the body -- deliberately the exact fingerprint
+vigolium's own WAF detector (`pkg/deparos/waf/detector.go`, `citrixNetscalerRule()`, read directly from that repo) checks for
+(403/429 + `Cneonction`/`NSC_*` already sent + that body substring). Registered as a catch-all *before*
+`cve_2019_19781`'s own broad catch-alls (root-path login, "any POST" payload logging) so generic attack noise on those paths gets
+blocked realistically instead of silently absorbed -- but with an explicit carve-out so it never shadows `cve_2019_19781`'s own,
+more specific `/vpn/../vpns/...` traversal handling. Every CVE/IOC route is still tried first and always wins on overlap.
+**Trade-off, deliberately not the default**: vigolium's own known-issue-scan treats that exact 403+marker signature as "this host is
+already filtering -- drop it, don't scan further" (see docs/SCANNER_SURFACE.md). Enabling it makes the honeypot look more
+convincing to a human/skilled attacker at the cost of possibly disengaging some automated scanners early -- and even a scanner that
+backs off has still been captured up to that point (the block event itself, with which signature tripped it, is the useful
+signal); it's not a wash, just a different flavour of the same "capture the attempt" job as everything else in Phase 3. Off by
+default on every other profile; select `adc-14.1-73.33-waf` explicitly to test against it. The signature list (sqli/xss/cmdi/
+traversal) is a small illustrative subset in the spirit of OWASP CRS's classic rules, not an exhaustive WAF ruleset.
 
 **Phase 4 - Outputs and local-lab ergonomics**
 - Implement sqlite (schema file is missing: `docs/sql/sqlite3.sql`), plain JSONL to stdout, optional Elasticsearch/syslog. Remove GeoIP by default.
