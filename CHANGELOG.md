@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Routes for CVE-2025-5777 (CitrixBleed 2, fake canned leak) and CVE-2023-3519; CTX697096 (CVE-2026-88771..88778) added to the CVE table
 * Memory-overread detection oracles: CVE-2023-4966 (CitrixBleed), CVE-2023-6549, CVE-2026-3055 (all canned/random fake data, never real memory)
 * CVE-2020-8193/8195/8196 unauthenticated-endpoint + LFI detection oracle (fake /etc/passwd, fixed versions verified against NVD)
+* CVE-2026-88771 attempt/IOC fingerprinting (login command-injection attempt, webshell check-in probe), from GreyNoise's published IOCs
 
 ### Changed
 

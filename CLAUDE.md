@@ -138,9 +138,21 @@ bulletins/public scanner templates such as nuclei/watchTowr before implementing)
 - CVE-2023-4966 "CitrixBleed" (DONE) (`GET /oauth/idp/.well-known/openid-configuration` + oversized `Host` -> canned *fake* hex leak matching
   nuclei's extractor regex; `POST /logon/LogonPoint/Authentication/GetUserName` session-replay logging)
 - CVE-2023-6549 (DONE) (`GET /nf/auth/startwebview.do` + oversized `Host` -> canned body with the two markers nuclei matches on)
-- CVE-2023-6548 (management interface), CVE-2024-8534/8535
+- CVE-2023-6548 (management interface, authenticated), CVE-2024-8534/8535, CVE-2025-6543/7775/7776/8424:
+  RESEARCHED, SKIPPED -- all are memory-corruption/crash-class bugs (DoS or internals-only RCE) with no public write-up or nuclei
+  template giving a concrete, safe-to-emulate HTTP request+response oracle (unlike the traversal/leak-style CVEs above); 6548 also
+  requires authenticated management-interface access, out of scope for an unauthenticated web honeypot. Their fixed_versions are
+  still in core/data/cves.json (from citrixscan) for state derivation. Revisit if a public detection template appears.
+- CVE-2024-6235 (NetScaler *Console*, not ADC/Gateway -- different product/port) has a real nuclei template (credential/session-secret
+  exposure) but Console isn't emulated by any current profile; candidate for a future Console profile, not implemented.
 - CVE-2026-3055 (DONE) (`GET /wsfed/passive?wctx` -> 302 + `NSC_TASS=<base64>` cookie decoding to a fake `wctx=...` leak)
-- CTX697096 (2026-09-27, CVE-2026-88771..88778, verified vs the Citrix bulletin): no request-level detail public; emulated only via the `nsepa.deb` patch oracle + build-derived state in core/data/cves_extra.json
+- CTX697096 (2026-09-27, CVE-2026-88771..88778, verified vs the Citrix bulletin): no *exploit* detail public; emulated via the `nsepa.deb`
+  patch oracle + build-derived state in core/data/cves_extra.json, PLUS (DONE) CVE-2026-88771 attempt/IOC fingerprinting from GreyNoise's
+  2026-09-28 IOC blog (https://www.greynoise.io/blog/swarming-against-citrix-0-day-exploitation): a `${IFS}` login command-injection
+  attempt on `/cgi/login` or `/nf/auth/doAuthentication.do`, and a GET probe for the published webshell path
+  (`/logon/LogonPoint/custom/.ctxs.receiver` or its `receiver.min[.hex].css` alias) -- see core/routes/cve_2026_88771.py. This is the
+  pattern the rest of Phase 3 should follow for CVEs with no formal PoC/nuclei template: a honeypot's job is to fingerprint and log a
+  *recognisable attempt* (a published IOC, injection technique, or scanner tag), not to prove exploitation with a byte-perfect matcher.
 - CVE-2025-5777 "CitrixBleed 2" (DONE) (`POST /p/u/doAuthentication.do` with valueless `login`), CVE-2025-6543, CVE-2025-7775
 - Other products if useful: StoreFront, Citrix Virtual Apps/ADM/SD-WAN and NetScaler Console management UIs (separate profiles, separate ports).
 For each: log a `scan` vs `exploit_attempt` classification, respond with a canned vulnerable-looking body, and never process attacker payloads.

@@ -121,5 +121,5 @@ def dispatch(ctx: Ctx):
 
 # Registration order is match order: specific routes first, the legacy catch-alls (any POST body, /vpns/*) last.
 for _name in ('cve_2020_8193', 'cve_2023_3519', 'cve_2023_4966', 'cve_2023_6549', 'cve_2025_5777',
-              'cve_2026_3055', 'netscaler_surface', 'cve_2019_19781'):
+              'cve_2026_3055', 'cve_2026_88771', 'netscaler_surface', 'cve_2019_19781'):
     import_module('core.routes.' + _name)
