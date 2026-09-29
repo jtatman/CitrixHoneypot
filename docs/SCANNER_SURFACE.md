@@ -41,9 +41,33 @@ Also in nuclei-templates but out of the NetScaler scope: XenMobile CVE-2020-8209
 
 **citrixscan** (see `CLAUDE.md`): version fingerprinting (`rdx_en.json.gz` gzip MTIME), IoC and management paths that must look absent on a clean profile.
 
+## Added 2026-09-29 (after the first pass)
+
+**technion/netscaler_scanner** (fingerprint.sh + citrix-conf-parse.py; MIT-style LICENSE added 2026-09-28). Covers Citrix bulletin **CTX697096**
+(published 2026-09-27; verified against the bulletin itself): CVE-2026-88771 (unauthenticated RCE, all deployments), 88772 (DTLS overflow; both
+observed exploited in the wild), 88773 (HTTP request smuggling), 88774 (URL-expression policy bypass), 88775/88776/88777 (memory overflows: Gateway/AAA,
+Oracle LB, non-HTTP L7), 88778 (TCP ISN prediction). Fixed in 14.1-73.37, 13.1-64.23, 14.1-FIPS 73.37, 13.1-FIPS/NDcPP 13.1-37.279; 12.1 and 13.0 are EOL
+and unpatched. The bulletin gives no request-level exploit detail (memory-corruption/DTLS/smuggling), so the only remotely observable oracle is its
+unauthenticated **patch check**: `GET /logon/LogonPoint/tmindex.html` must be 200, then the size of `/epa/scripts/linux/nsepa.deb` (ranged GET,
+`Content-Range`; HEAD is answered without a length): `11230664` = 14.1-73.33 (vulnerable), `10688726` = 14.1-73.37 or later. Its author warns the size is a
+proxy and must be calibrated on a real box. Implemented by the `netscaler-surface` profile feature; `fingerprint.sh` gives the right verdict against both
+`adc-14.1-73.*` profiles.
+
+**exploit-db / searchsploit** (`files_exploits.csv` from gitlab.com/exploit-database/exploitdb, 47,160 entries, newest 2026-09-11): 39 Citrix/NetScaler
+entries, newest is EDB-52401 (CVE-2025-5777, 2025-08-11). Nothing for 2026, so exploit-db adds no request detail beyond nuclei for the CVEs we already
+track. Older items worth knowing: 47901/47902/47913/47930 (CVE-2019-19781), 49038 (Metasploit LFI, CVE-2020-8193 family), 36369 (CVE-2015-2841 NS 10.5
+WAF bypass via header pollution), 35180 (CVE-2014-7140 SOAP handler RCE), 47112 (SD-WAN CVE-2019-12989/12991), 42345/42346 (SD-WAN/CloudBridge
+CVE-2017-6316), 47561/47951 (StoreFront/XenMobile XXE).
+
+## Implemented so far (Phase 3, first cut)
+
+Profile feature `netscaler-surface` + profiles `adc-14.1-73.33-vulnerable` / `adc-14.1-73.37-patched`: real 404 for unmatched paths, Citrix logon page with
+`ctxs.core.min.js` and `CTXS.*` markers, `Cneonction` header, `nsepa.deb` size oracle (with Range), `rdx_en.json.gz` with the build's gzip MTIME (only for builds in
+citrixscan's table, i.e. not 73.x), CVE-2025-5777 (canned fake leak, or empty `<InitialValue>` when the build is fixed), CVE-2023-3519 (`SAML Assertion verification failed;`).
+
 ## Findings for this honeypot
 
-1. **Unknown paths return HTTP 200 with an empty body** (`core/routes` falls through to `Hit()`). Crawlers and scanners calibrate against soft-404s
+1. (fixed for profiles with `not_found:`; legacy profile keeps it) **Unknown paths return HTTP 200 with an empty body** (`core/routes` falls through to `Hit()`). Crawlers and scanners calibrate against soft-404s
    and the nuclei `status: 200` matchers become easier to satisfy; every `/menu/*`, `/nitro/*`, `/gui/` probe currently "exists". Add a profile-level
    not-found response (status + page) and make it the default for unmatched requests.
 2. **The login page is a 2019 stub** with no `/vpn/js/...` assets, no `ctxs.core.min.js`, no `CTXS.*` globals: katana/wappalyzer will not identify it as

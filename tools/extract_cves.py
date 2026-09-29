@@ -28,3 +28,12 @@ out = {
 dest = Path(__file__).resolve().parent.parent / 'core' / 'data' / 'cves.json'
 dest.write_text(json.dumps(out, indent=1, sort_keys=True) + '\n')
 print('wrote', dest, len(out['cves']), 'CVEs')
+
+# gzip MTIME of /vpn/js/rdx/core/lang/rdx_en.json.gz -> firmware build (Fox-IT technique), version -> [mtimes]
+stamps = {}
+for mtime, ver in mod.RDX_EN_STAMP_TO_VERSION.items():
+    stamps.setdefault(ver, []).append(mtime)
+dest2 = dest.with_name('rdx_en_stamps.json')
+dest2.write_text(json.dumps({'_source': out['_source'] + ' RDX_EN_STAMP_TO_VERSION',
+                             'versions': {v: sorted(t) for v, t in stamps.items()}}, indent=1, sort_keys=True) + '\n')
+print('wrote', dest2, len(stamps), 'versions')

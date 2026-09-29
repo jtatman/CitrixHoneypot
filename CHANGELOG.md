@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * CVE state derived from the profile's `build` using a vendored fix-version table (`core/data/cves.json`, from citrixscan)
 * Automatic self-signed certificate generation; `patched` and `profile` fields on events; HTTP status codes on responses
 
+* Profile options `features`, `not_found`, `mangle_connection`, `epa_deb_size`, `rdx_en_mtime`; modern profiles `adc-14.1-73.33-vulnerable` and `adc-14.1-73.37-patched`
+* NetScaler surface (`netscaler-surface`): Citrix logon page markers, `Cneonction` header, `nsepa.deb` size patch oracle for CTX697096 with Range support, `rdx_en.json.gz` gzip-MTIME fingerprint
+* Routes for CVE-2025-5777 (CitrixBleed 2, fake canned leak) and CVE-2023-3519; CTX697096 (CVE-2026-88771..88778) added to the CVE table
+
 ### Changed
 
 * Request handling refactored into a route table (`core/routes/`); events gain `cve` and `route_id` fields

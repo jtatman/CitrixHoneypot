@@ -24,7 +24,7 @@ core/profile.py        Profile dataclass + YAML loader/validator; `Profile.state
 core/cvedb.py          fix-version lookup over core/data/cves.json (25 CVEs, vendored from jtatman/citrixscan via tools/extract_cves.py)
 core/tls.py            ensure_cert(): self-signed key/cert generated at startup if missing (CN from the profile)
 profiles/              <name>.yaml appliance profiles (select with `--profile` / `[honeypot] profile` / env HONEYPOT_PROFILE)
-core/routes/           declarative route table (Route/Hit/Ctx in __init__.py; one module per CVE/product family, e.g. cve_2019_19781.py)
+core/routes/           (order matters: the list in routes/__init__.py is match order, catch-alls last) declarative route table (Route/Hit/Ctx in __init__.py; one module per CVE/product family, e.g. cve_2019_19781.py)
 tests/                 pytest golden tests driving Index.render() with DummyRequest (run from anywhere; conftest chdirs to repo root)
 core/tools.py          helpers: url normalisation, IP helpers, event writing, plugin loading
 core/config.py         ConfigParser + env-var override (SECTION_OPTION), reads etc/honeypot.cfg.base, etc/honeypot.cfg, ./honeypot.cfg
@@ -52,6 +52,7 @@ curl -sk 'https://127.0.0.1:8443/vpn/../vpns/cfg/smb.conf'   # note: use --path-
 ```
 CI: `.github/workflows/ci.yml` (ruff + pytest, py3.10/3.12). Add a pytest case with any change to routing.
 Caveat: `DummyRequest.setHeader` appends instead of replacing (real Twisted replaces), so use `responseHeaders.addRawHeader` for multi-valued headers.
+Default profile is still the legacy `adc-12.1-vulnerable` (kept for parity); use `--profile adc-14.1-73.33-vulnerable` for the modern surface.
 Don't `pkill -f` the honeypot from a shell that includes its name in the command line; kill by PID.
 Config precedence: env var `SECTION_OPTION` > `honeypot.cfg` > `etc/honeypot.cfg.base`.
 Run from repo root: `responses/` and `etc/` are opened via relative paths.
@@ -125,14 +126,15 @@ Also known: the CISA checker only matches the body text `You don't have permissi
 Key takeaways: vigolium has no Citrix modules of its own (its known-issue-scan embeds nuclei) but drops hosts that show a NetScaler WAF fingerprint on 403/429
 (`Cneonction`/`nnCoection`, `NSC_` cookies); unknown paths currently return 200 (soft-404 problem); login page lacks Citrix JS markers katana/wappalyzer use.
 
-**Phase 3 - Recent Citrix vulnerability surfaces** (candidate list from memory of public advisories - verify each against NVD/Citrix bulletins/public
+**Phase 3 - Recent Citrix vulnerability surfaces (STARTED: netscaler-surface fingerprint, patch oracle, 404 default, CVE-2025-5777, CVE-2023-3519; see docs/SCANNER_SURFACE.md for what remains)** (candidate list from memory of public advisories - verify each against NVD/Citrix bulletins/public
 scanner templates such as nuclei/watchTowr before implementing)
 - CVE-2019-19781 (done; extend), CVE-2020-8193/8195/8196 (unauth `/pcidss/report`, `/menu/stapi`, `/rapi/filedownload`)
 - CVE-2022-27510 / 27518 (Gateway auth bypass, `/cgi/setclient`, SAML/`/vpn/` endpoints)
 - CVE-2023-3519 (gateway RCE; probe paths like `/gwtest/formssso`, `/logon/LogonPoint/`)
 - CVE-2023-4966 "CitrixBleed" (`/oauth/idp/.well-known/openid-configuration`, oversized `Host` header -> canned *fake* leak, never real memory)
 - CVE-2023-6548/6549 (management interface), CVE-2024-8534/8535
-- CVE-2025-5777 "CitrixBleed 2" (`POST /p/u/doAuthentication.do` with valueless `login`), CVE-2025-6543, CVE-2025-7775
+- CTX697096 (2026-09-27, CVE-2026-88771..88778, verified vs the Citrix bulletin): no request-level detail public; emulated only via the `nsepa.deb` patch oracle + build-derived state in core/data/cves_extra.json
+- CVE-2025-5777 "CitrixBleed 2" (DONE) (`POST /p/u/doAuthentication.do` with valueless `login`), CVE-2025-6543, CVE-2025-7775
 - Other products if useful: StoreFront, Citrix Virtual Apps/ADM/SD-WAN and NetScaler Console management UIs (separate profiles, separate ports).
 For each: log a `scan` vs `exploit_attempt` classification, respond with a canned vulnerable-looking body, and never process attacker payloads.
 

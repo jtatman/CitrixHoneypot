@@ -47,7 +47,17 @@ class Profile:
     cves: Dict[str, str] = field(default_factory=dict)
     patched_status: int = 404
     patched_page: str = '404.html'
+    features: List[str] = field(default_factory=list)           # e.g. 'netscaler-surface'
+    not_found: Dict = field(default_factory=dict)               # {status, page} for unmatched; empty = legacy 200
+    mangle_connection: bool = False                             # send NetScaler's 'Cneonction' instead of 'Connection'
+    epa_deb_size: int = 0                                       # size of /epa/scripts/linux/nsepa.deb (patch oracle)
+    rdx_en_mtime: int = 0                                       # gzip MTIME of rdx_en.json.gz (0 = derive from build)
 
+    def has(self, feature):
+        return feature in self.features
+
+    def gzip_mtime(self):
+        return self.rdx_en_mtime or cvedb.rdx_en_mtime(self.build)
     def state(self, cve):
         """'vulnerable', 'patched' or 'off' for a CVE.
 
@@ -69,7 +79,8 @@ def load_profile(name=DEFAULT_PROFILE, directory=PROFILES_DIR):
         raise ProfileError('{}: top level must be a mapping'.format(path))
 
     known = {'name', 'product', 'build', 'server_header', 'login_page', 'headers', 'cookies', 'tls', 'cves',
-             'patched_response'}
+             'patched_response', 'features', 'not_found', 'mangle_connection', 'epa_deb_size',
+             'rdx_en_mtime'}
     if set(data) - known:
         raise ProfileError('{}: unknown keys {}'.format(path, sorted(set(data) - known)))
     if data.get('name', name) != name:
@@ -92,7 +103,15 @@ def load_profile(name=DEFAULT_PROFILE, directory=PROFILES_DIR):
     pr = data.get('patched_response') or {}
     p.patched_status = int(pr.get('status', p.patched_status))
     p.patched_page = str(pr.get('page', p.patched_page))
-    for page in (p.login_page, p.patched_page):
+    p.features = [str(f) for f in data.get('features') or []]
+    p.mangle_connection = bool(data.get('mangle_connection', False))
+    p.epa_deb_size = int(data.get('epa_deb_size', 0))
+    p.rdx_en_mtime = int(data.get('rdx_en_mtime', 0))
+    if not 0 <= p.epa_deb_size <= 64 * 1024 * 1024:
+        raise ProfileError('{}: epa_deb_size must be 0..67108864'.format(path))
+    nf = data.get('not_found') or {}
+    p.not_found = {'status': int(nf.get('status', 404)), 'page': str(nf.get('page', '404.html'))} if nf else {}
+    for page in (p.login_page, p.patched_page, *([p.not_found['page']] if p.not_found else [])):
         if not _NAME.match(page):
             raise ProfileError('{}: invalid page name {!r}'.format(path, page))
     return p

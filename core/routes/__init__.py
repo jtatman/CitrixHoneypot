@@ -5,6 +5,7 @@ Routes are tried in registration order and the first match wins.
 Route modules register themselves with @route at import time.
 """
 from dataclasses import dataclass, field, replace
+from importlib import import_module
 from typing import Callable, Dict, List, Optional
 from urllib.parse import unquote
 
@@ -23,9 +24,15 @@ class Ctx:
     body: str
     cfg: dict
     profile: object = None    # core.profile.Profile the honeypot is currently impersonating
+    range: str = ''           # Range request header, if any
+
+    @property
+    def bare(self) -> str:
+        """Collapsed path without the query string."""
+        return self.collapsed.split('?')[0]
 
     @classmethod
-    def build(cls, method: str, uri: bytes, body: bytes, cfg: dict, profile=None) -> 'Ctx':
+    def build(cls, method: str, uri: bytes, body: bytes, cfg: dict, profile=None, range_header: str = '') -> 'Ctx':
         path = unquote(uri.decode('utf-8', 'replace'))
         traversal = path.find('/../') != -1
         collapsed = tools.resolve_url(path) if traversal else path
@@ -39,6 +46,7 @@ class Ctx:
             body=body.decode('utf-8', 'replace'),
             cfg=cfg,
             profile=profile,
+            range=range_header or '',
         )
 
 
@@ -52,6 +60,9 @@ class Hit:
     event: Optional[Dict] = None   # extra fields merged into the base event; None = no event
     eventid: str = 'citrix.connection'
     status: int = 200
+    data: Optional[bytes] = None   # raw body; takes precedence over page
+    content_type: str = 'text/html'
+    headers: Dict[str, str] = field(default_factory=dict)   # extra response headers
 
 
 @dataclass
@@ -60,15 +71,16 @@ class Route:
     cve: Optional[str]
     match: Callable[[Ctx], bool]
     handle: Callable[[Ctx], Hit]
+    patched: Optional[Callable[[Ctx], Hit]] = None   # what a patched build does instead of the generic not-found
 
 
 ROUTES: List[Route] = []
 
 
-def route(id, match, cve=None):
+def route(id, match, cve=None, patched=None):
     """Decorator registering ``handle`` as the handler of route ``id``."""
     def deco(handle):
-        ROUTES.append(Route(id, cve, match, handle))
+        ROUTES.append(Route(id, cve, match, handle, patched))
         return handle
     return deco
 
@@ -84,13 +96,22 @@ def dispatch(ctx: Ctx):
         state = prof.state(r.cve) if (prof and r.cve) else 'vulnerable'
         if state == 'off' or not r.match(ctx):
             continue
+        if state == 'patched' and r.patched:
+            hit = r.patched(ctx)
+            hit.event = dict(hit.event, patched=True) if hit.event is not None else None
+            return r, hit
         hit = r.handle(ctx)
         if state == 'patched':
             event = dict(hit.event, patched=True) if hit.event is not None else None
             hit = replace(hit, page=prof.patched_page, subst={'url': ctx.collapsed}, status=prof.patched_status,
                           event=event)
         return r, hit
+    nf = prof.not_found if prof else None
+    if nf:   # modern profiles: unmatched paths are a real 404, not a 200/empty soft-404
+        return None, Hit(page=nf['page'], subst={'url': ctx.path}, status=nf['status'])
     return None, Hit()
 
 
-from core.routes import cve_2019_19781  # noqa: E402,F401  (registers routes)
+# Registration order is match order: specific routes first, the legacy catch-alls (any POST body, /vpns/*) last.
+for _name in ('cve_2023_3519', 'cve_2025_5777', 'netscaler_surface', 'cve_2019_19781'):
+    import_module('core.routes.' + _name)
