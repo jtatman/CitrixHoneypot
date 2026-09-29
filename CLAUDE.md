@@ -126,17 +126,26 @@ Also known: the CISA checker only matches the body text `You don't have permissi
 Key takeaways: vigolium has no Citrix modules of its own (its known-issue-scan embeds nuclei) but drops hosts that show a NetScaler WAF fingerprint on 403/429
 (`Cneonction`/`nnCoection`, `NSC_` cookies); unknown paths currently return 200 (soft-404 problem); login page lacks Citrix JS markers katana/wappalyzer use.
 
-**Phase 3 - Recent Citrix vulnerability surfaces (STARTED: netscaler-surface fingerprint, patch oracle, 404 default, CVE-2025-5777, CVE-2023-3519; see docs/SCANNER_SURFACE.md for what remains)** (candidate list from memory of public advisories - verify each against NVD/Citrix bulletins/public
-scanner templates such as nuclei/watchTowr before implementing)
+**Phase 3 - Recent Citrix vulnerability surfaces (STARTED: netscaler-surface fingerprint, patch oracle, 404 default, plus the memory-overread family
+below; see docs/SCANNER_SURFACE.md for what remains)** (candidate list from memory of public advisories - verify each against NVD/Citrix
+bulletins/public scanner templates such as nuclei/watchTowr before implementing)
 - CVE-2019-19781 (done; extend), CVE-2020-8193/8195/8196 (unauth `/pcidss/report`, `/menu/stapi`, `/rapi/filedownload`)
 - CVE-2022-27510 / 27518 (Gateway auth bypass, `/cgi/setclient`, SAML/`/vpn/` endpoints)
-- CVE-2023-3519 (gateway RCE; probe paths like `/gwtest/formssso`, `/logon/LogonPoint/`)
-- CVE-2023-4966 "CitrixBleed" (`/oauth/idp/.well-known/openid-configuration`, oversized `Host` header -> canned *fake* leak, never real memory)
-- CVE-2023-6548/6549 (management interface), CVE-2024-8534/8535
+- CVE-2023-3519 "memory-overread family" (DONE) (gateway RCE; `POST /saml/login` -> `SAML Assertion verification failed;`)
+- CVE-2023-4966 "CitrixBleed" (DONE) (`GET /oauth/idp/.well-known/openid-configuration` + oversized `Host` -> canned *fake* hex leak matching
+  nuclei's extractor regex; `POST /logon/LogonPoint/Authentication/GetUserName` session-replay logging)
+- CVE-2023-6549 (DONE) (`GET /nf/auth/startwebview.do` + oversized `Host` -> canned body with the two markers nuclei matches on)
+- CVE-2023-6548 (management interface), CVE-2024-8534/8535
+- CVE-2026-3055 (DONE) (`GET /wsfed/passive?wctx` -> 302 + `NSC_TASS=<base64>` cookie decoding to a fake `wctx=...` leak)
 - CTX697096 (2026-09-27, CVE-2026-88771..88778, verified vs the Citrix bulletin): no request-level detail public; emulated only via the `nsepa.deb` patch oracle + build-derived state in core/data/cves_extra.json
 - CVE-2025-5777 "CitrixBleed 2" (DONE) (`POST /p/u/doAuthentication.do` with valueless `login`), CVE-2025-6543, CVE-2025-7775
 - Other products if useful: StoreFront, Citrix Virtual Apps/ADM/SD-WAN and NetScaler Console management UIs (separate profiles, separate ports).
 For each: log a `scan` vs `exploit_attempt` classification, respond with a canned vulnerable-looking body, and never process attacker payloads.
+All "DONE" memory-overread routes are detection oracles only: the "leaked" bytes are `secrets.token_hex`/`token_urlsafe`, always marked
+`HONEYPOT-FAKE-LEAK` in the event log (and usually in the response body/comment too), and no code path reads real process memory.
+Per-route `patched=` handlers matter here: a route with no explicit one falls back to a from-scratch not-found `Hit` on a patched build (see the
+`dispatch()` comment in `core/routes/__init__.py` - it must NOT `replace()` onto the vulnerable `Hit`, since `data`/`cookies`/`headers` would
+otherwise leak through unchanged even though `page`/`status` get overridden).
 
 **Phase 4 - Outputs and local-lab ergonomics**
 - Implement sqlite (schema file is missing: `docs/sql/sqlite3.sql`), plain JSONL to stdout, optional Elasticsearch/syslog. Remove GeoIP by default.

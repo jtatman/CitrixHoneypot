@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Struggle check now actually returns the gold star page
 * Control characters in logged request paths are escaped
 * Replaced deprecated `datetime.utcfromtimestamp`
+* `dispatch()`'s default "patched" fallback no longer leaks a route's `data`/`cookies`/`headers` into the not-found response it's supposed to replace
 
 ### Added
 
@@ -25,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Profile options `features`, `not_found`, `mangle_connection`, `epa_deb_size`, `rdx_en_mtime`; modern profiles `adc-14.1-73.33-vulnerable` and `adc-14.1-73.37-patched`
 * NetScaler surface (`netscaler-surface`): Citrix logon page markers, `Cneonction` header, `nsepa.deb` size patch oracle for CTX697096 with Range support, `rdx_en.json.gz` gzip-MTIME fingerprint
 * Routes for CVE-2025-5777 (CitrixBleed 2, fake canned leak) and CVE-2023-3519; CTX697096 (CVE-2026-88771..88778) added to the CVE table
+* Memory-overread detection oracles: CVE-2023-4966 (CitrixBleed), CVE-2023-6549, CVE-2026-3055 (all canned/random fake data, never real memory)
 
 ### Changed
 

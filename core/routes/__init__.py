@@ -4,7 +4,7 @@ A Route pairs a ``match`` predicate with a ``handle`` function returning a Hit.
 Routes are tried in registration order and the first match wins.
 Route modules register themselves with @route at import time.
 """
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from importlib import import_module
 from typing import Callable, Dict, List, Optional
 from urllib.parse import unquote
@@ -25,6 +25,7 @@ class Ctx:
     cfg: dict
     profile: object = None    # core.profile.Profile the honeypot is currently impersonating
     range: str = ''           # Range request header, if any
+    host: str = ''            # Host request header, if any (oversized-header probes key on its length)
 
     @property
     def bare(self) -> str:
@@ -32,7 +33,8 @@ class Ctx:
         return self.collapsed.split('?')[0]
 
     @classmethod
-    def build(cls, method: str, uri: bytes, body: bytes, cfg: dict, profile=None, range_header: str = '') -> 'Ctx':
+    def build(cls, method: str, uri: bytes, body: bytes, cfg: dict, profile=None, range_header: str = '',
+              host_header: str = '') -> 'Ctx':
         path = unquote(uri.decode('utf-8', 'replace'))
         traversal = path.find('/../') != -1
         collapsed = tools.resolve_url(path) if traversal else path
@@ -47,6 +49,7 @@ class Ctx:
             cfg=cfg,
             profile=profile,
             range=range_header or '',
+            host=host_header or '',
         )
 
 
@@ -63,6 +66,7 @@ class Hit:
     data: Optional[bytes] = None   # raw body; takes precedence over page
     content_type: str = 'text/html'
     headers: Dict[str, str] = field(default_factory=dict)   # extra response headers
+    cookies: List[str] = field(default_factory=list)        # extra Set-Cookie values, appended after the profile's
 
 
 @dataclass
@@ -102,9 +106,12 @@ def dispatch(ctx: Ctx):
             return r, hit
         hit = r.handle(ctx)
         if state == 'patched':
+            # Build a plain not-found response from scratch rather than `replace()`-ing the vulnerable Hit:
+            # its `data`/`cookies`/`headers` would otherwise leak through unchanged (only page/status get
+            # overridden), since `data` takes priority over `page` in protocol.py regardless of state.
             event = dict(hit.event, patched=True) if hit.event is not None else None
-            hit = replace(hit, page=prof.patched_page, subst={'url': ctx.collapsed}, status=prof.patched_status,
-                          event=event)
+            hit = Hit(page=prof.patched_page, subst={'url': ctx.collapsed}, status=prof.patched_status,
+                     event=event)
         return r, hit
     nf = prof.not_found if prof else None
     if nf:   # modern profiles: unmatched paths are a real 404, not a 200/empty soft-404
@@ -113,5 +120,6 @@ def dispatch(ctx: Ctx):
 
 
 # Registration order is match order: specific routes first, the legacy catch-alls (any POST body, /vpns/*) last.
-for _name in ('cve_2023_3519', 'cve_2025_5777', 'netscaler_surface', 'cve_2019_19781'):
+for _name in ('cve_2023_3519', 'cve_2023_4966', 'cve_2023_6549', 'cve_2025_5777', 'cve_2026_3055',
+              'netscaler_surface', 'cve_2019_19781'):
     import_module('core.routes.' + _name)

@@ -24,7 +24,8 @@ class Index(Resource):
         # Overrides Resource.render so that custom HTTP methods are handled too.
         method = request.method.decode('ascii', 'replace')
         raw = request.content.read(MAX_BODY) if method == 'POST' else b''
-        ctx = Ctx.build(method, request.uri, raw, self.cfg, self.profile, request.getHeader('range') or '')
+        ctx = Ctx.build(method, request.uri, raw, self.cfg, self.profile, request.getHeader('range') or '',
+                        request.getHeader('host') or '')
 
         tools.logger(request, 'INFO', '{}: {}'.format(method, ctx.path))
         route, hit = dispatch(ctx)
@@ -36,11 +37,11 @@ class Index(Resource):
 
         request.setResponseCode(hit.status)
         if hit.data is not None:
-            return self.send_response(request, hit.data, hit.content_type, hit.headers)
+            return self.send_response(request, hit.data, hit.content_type, hit.headers, hit.cookies)
         page = self.get_page(hit.page) if hit.page else ''
         for key, value in hit.subst.items():
             page = page.replace('{' + key + '}', value)
-        return self.send_response(request, page, hit.content_type, hit.headers)
+        return self.send_response(request, page, hit.content_type, hit.headers, hit.cookies)
 
     def emit(self, request, ctx, route, hit):
         unix_time = time()
@@ -68,12 +69,12 @@ class Index(Resource):
             self._pages[name] = (RESPONSES_DIR / name).read_text()
         return self._pages[name]
 
-    def send_response(self, request, page='', content_type='text/html', headers=None):
+    def send_response(self, request, page='', content_type='text/html', headers=None, cookies=None):
         body = page if isinstance(page, bytes) else page.encode('utf-8')
         request.setHeader('Server', self.profile.server_header)
         for name, value in {**self.profile.headers, **(headers or {})}.items():
             request.setHeader(name, value)
-        for cookie in self.profile.cookies:
+        for cookie in self.profile.cookies + list(cookies or []):
             request.responseHeaders.addRawHeader(b'Set-Cookie', cookie.encode())
         # NetScaler rewrites "Connection" into the misspelled "Cneonction" (a well-known fingerprint)
         request.setHeader('Cneonction' if self.profile.mangle_connection else 'Connection', 'Close')

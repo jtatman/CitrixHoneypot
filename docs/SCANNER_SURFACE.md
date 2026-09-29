@@ -59,19 +59,38 @@ track. Older items worth knowing: 47901/47902/47913/47930 (CVE-2019-19781), 4903
 WAF bypass via header pollution), 35180 (CVE-2014-7140 SOAP handler RCE), 47112 (SD-WAN CVE-2019-12989/12991), 42345/42346 (SD-WAN/CloudBridge
 CVE-2017-6316), 47561/47951 (StoreFront/XenMobile XXE).
 
-## Implemented so far (Phase 3, first cut)
+## Live tool run, 2026-09-29 (partial)
+
+Built katana v1.7.0 and vigolium from source in-session (vigolium needed a one-line stub for its bundled `jstangle` helper, unrelated to this repo, to
+compile). Both needed `NO_PROXY=127.0.0.1` and closed stdin to run at all in this sandbox (they otherwise read targets from stdin or hang on the
+outbound proxy). katana's own tech-detection reported "Citrix" against the `adc-14.1-73.33-vulnerable` profile, confirming the logon-page markers work.
+A `vigolium scan` was started against the same profile (discovery -> spidering -> dynamic-assessment) and was mid-run, with an early passive
+`clickjacking-detect` finding, when the run was interrupted; its known-issue-scan (nuclei-in-process) results against our CVE routes were not seen.
+Not re-attempted this session. `technion/netscaler_scanner`'s `fingerprint.sh` (see below) *did* run to completion and confirmed the patch oracle.
+
+## Implemented so far (Phase 3)
 
 Profile feature `netscaler-surface` + profiles `adc-14.1-73.33-vulnerable` / `adc-14.1-73.37-patched`: real 404 for unmatched paths, Citrix logon page with
 `ctxs.core.min.js` and `CTXS.*` markers, `Cneonction` header, `nsepa.deb` size oracle (with Range), `rdx_en.json.gz` with the build's gzip MTIME (only for builds in
-citrixscan's table, i.e. not 73.x), CVE-2025-5777 (canned fake leak, or empty `<InitialValue>` when the build is fixed), CVE-2023-3519 (`SAML Assertion verification failed;`).
+citrixscan's table, i.e. not 73.x).
 
-## Findings for this honeypot
+CVE routes, all detection oracles (canned/random data, never real memory or exploit execution), build-derived vulnerable/patched state:
+- CVE-2025-5777 "CitrixBleed 2": fake leak or empty `<InitialValue>` when fixed.
+- CVE-2023-3519: `POST /saml/login` -> `SAML Assertion verification failed;`.
+- CVE-2023-4966 "CitrixBleed": oversized-`Host` `GET /oauth/idp/.well-known/openid-configuration` -> JSON body plus a `HONEYPOT-FAKE-LEAK` comment
+  containing a fake 100-hex-char string with nuclei's expected fixed suffix; `POST .../GetUserName` session-replay logging.
+- CVE-2023-6549: oversized-`Host` `GET /nf/auth/startwebview.do` -> canned body with nuclei's two required markers.
+- CVE-2026-3055: `GET /wsfed/passive?wctx` -> 302 + `NSC_TASS=<base64>` cookie decoding to a fake `wctx=HONEYPOT-FAKE-LEAK-...` value.
 
-1. (fixed for profiles with `not_found:`; legacy profile keeps it) **Unknown paths return HTTP 200 with an empty body** (`core/routes` falls through to `Hit()`). Crawlers and scanners calibrate against soft-404s
-   and the nuclei `status: 200` matchers become easier to satisfy; every `/menu/*`, `/nitro/*`, `/gui/` probe currently "exists". Add a profile-level
-   not-found response (status + page) and make it the default for unmatched requests.
-2. **The login page is a 2019 stub** with no `/vpn/js/...` assets, no `ctxs.core.min.js`, no `CTXS.*` globals: katana/wappalyzer will not identify it as
-   Citrix. Real NetScaler also mangles `Connection` (`Cneonction`/`nnCoection`); we send `Connection: Close`.
+Bug found and fixed while adding these: `dispatch()`'s generic "no route-specific `patched=` handler" fallback used `dataclasses.replace()` on the
+vulnerable `Hit`, which only overrides `page`/`status`/`event` - a route's `data`/`cookies`/`headers` (used by all three new oversized-Host/redirect
+routes) silently survived into the "patched" response. Fixed by building a fresh `Hit` instead; regression tests in `tests/test_memleak_cves.py`
+assert the patched responses carry no leaked cookie/body.
+
+## Findings for this honeypot (fixed)
+
+1. FIXED (profiles with `not_found:`; the legacy profile intentionally keeps the old 200/empty behaviour for parity).
+2. FIXED: the modern profiles' login page has the Citrix JS markers and the `Cneonction` header.
 3. **Handlers missing** for everything in the table except 2019-19781. Most are plain reflect/echo responses and are cheap to emulate; the memory-leak
    family (4966, 6549, 5777, 3055) needs a canned *fake* leak (random bytes/tokens that contain no real data) and correct content types.
 4. The detection oracles need HTTP details the current server does not control: oversized `Host` header handling (Twisted limits), header injection via
