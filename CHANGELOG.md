@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * CVE-2020-8193/8195/8196 unauthenticated-endpoint + LFI detection oracle (fake /etc/passwd, fixed versions verified against NVD)
 * CVE-2026-88771 attempt/IOC fingerprinting (login command-injection attempt, webshell check-in probe), from GreyNoise's published IOCs
 * Generic, CVE-agnostic IOC/misconfig-path logging (`core/routes/ioc_probes.py`), vendored from citrixscan's IOC_PATHS/MISCONFIG_PATHS
+* CVE-2026-8452 IOC (webshell path `/vpn/theme/x.php`) and CVE-2026-88771/88772 log-poisoning payload signature detection, from a
+  GitHub survey of watchTowr Labs' detection tooling
+* `X-NITRO-USER`/`X-NITRO-PASS`/`rand_key` header telemetry and a corrected HTTP 406 status for the CVE-2020-8193 family's detection oracle
 
 ### Changed
 

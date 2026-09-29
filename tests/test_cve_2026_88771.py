@@ -1,7 +1,8 @@
-"""CVE-2026-88771 (CTX697096) attempt/IOC fingerprinting, from GreyNoise's 2026-09-28 IOC blog
-(https://www.greynoise.io/blog/swarming-against-citrix-0-day-exploitation). We only recognise the two
-published observables (a ${IFS} login command-injection attempt, and a webshell check-in path scan) --
-nothing here executes attacker input, and the webshell path genuinely 404s (it never exists on disk).
+"""CVE-2026-88771 (CTX697096) attempt/IOC fingerprinting, from GreyNoise's 2026-09-28 IOC blog and
+watchTowr Labs' detection-artifact tool. We only recognise the three published observables (a ${IFS} login
+command-injection attempt, a webshell check-in path scan, and the "pitboss PPE" log-poisoning payload
+signature) -- nothing here executes attacker input, and the webshell path genuinely 404s (it never exists
+on disk).
 """
 import pytest
 
@@ -72,3 +73,34 @@ def test_webshell_alias_regex_does_not_overmatch(vuln, send, capture):
     send(vuln, 'GET', '/logon/LogonPoint/custom/receiver.min.cssx')
     send(vuln, 'GET', '/logon/LogonPoint/custom/receiver.css')
     assert not any(e.get('route_id') == 'cve-2026-88771-webshell-checkin' for e in capture.events)
+
+
+# --- log-poisoning payload signature (watchTowr Labs) -----------------------------------------------------
+LOG_POISON = 'pitboss PPE unexpectedly died NSPPE;id;# X'
+
+
+def test_log_poison_in_body(vuln, send, capture):
+    body, req = send(vuln, 'POST', '/some/diagnostic/endpoint', LOG_POISON.encode())
+    assert req.responseCode == 200
+    ev = capture.events[0]
+    assert ev['cve'] == 'CVE-2026-88771' and ev['route_id'] == 'cve-2026-88771-log-poison'
+    assert 'watchtowrlabs' in ev['ioc_source'] and LOG_POISON in ev['body']
+
+
+def test_log_poison_in_path(vuln, send, capture):
+    from urllib.parse import quote
+    send(vuln, 'GET', '/anything?x=' + quote(LOG_POISON))
+    assert capture.events[0]['route_id'] == 'cve-2026-88771-log-poison'
+
+
+def test_log_poison_patched_still_logged(patched, send, capture):
+    send(patched, 'POST', '/x', LOG_POISON.encode())
+    assert capture.events[0]['patched'] is True
+    assert 'patched build' in capture.events[0]['message']
+
+
+def test_log_poison_normal_traffic_not_flagged(vuln, send, capture):
+    send(vuln, 'POST', '/some/diagnostic/endpoint', b'ordinary body text')
+    # a non-empty POST body always matches cve_2019_19781's generic legacy catch-all; what matters here is
+    # that the log-poison signature specifically did not fire
+    assert not any(e.get('route_id') == 'cve-2026-88771-log-poison' for e in capture.events)

@@ -1,5 +1,5 @@
 {
- "_source": "Citrix bulletin CTX697096 (2026-09-27), https://support.citrix.com/external/article/CTX697096/citrix-netscaler-adc-and-citrix-netscale.html; cross-checked with https://github.com/technion/netscaler_scanner. Fixed-build keys are branches; FIPS/NDcPP builds (14.1-FIPS 73.37, 13.1-FIPS/NDcPP 37.279) are not modelled.; CVE-2020-8193/8195/8196 fixed versions verified against NVD (nvd.nist.gov/vuln/detail/CVE-2020-819{3,5,6}), advisory CTX276688",
+ "_source": "Citrix bulletin CTX697096 (2026-09-27), https://support.citrix.com/external/article/CTX697096/citrix-netscaler-adc-and-citrix-netscale.html; cross-checked with https://github.com/technion/netscaler_scanner. Fixed-build keys are branches; FIPS/NDcPP builds (14.1-FIPS 73.37, 13.1-FIPS/NDcPP 37.279) are not modelled.; CVE-2020-8193/8195/8196 fixed versions verified against NVD (nvd.nist.gov/vuln/detail/CVE-2020-819{3,5,6}), advisory CTX276688; CVE-2026-8452 verified against https://github.com/watchtowrlabs/watchTowr-vs-Citrix-Netscaler-PreAuth-RCE-CVE-2026-8452",
  "cves": {
   "CVE-2020-8193": {
    "advisory": "CTX276688",
@@ -51,6 +51,23 @@
    "public_poc": false,
    "severity": "MEDIUM",
    "title": "Improper access control, limited information disclosure to low-privileged users"
+  },
+  "CVE-2026-8452": {
+   "advisory": "CTX697096-adjacent (GHSA-mx58-p288-86qp)",
+   "affected_config": [
+    "SAML SP",
+    "SAML IDP"
+   ],
+   "cvss": 9.8,
+   "cwe": "CWE-122",
+   "exploited_in_wild": false,
+   "fixed_versions": {
+    "13.1": "13.1-63.18",
+    "14.1": "14.1-72.61"
+   },
+   "public_poc": true,
+   "severity": "CRITICAL",
+   "title": "SAML SP/IdP pre-auth heap overflow leading to RCE"
   },
   "CVE-2026-88771": {
    "advisory": "CTX697096",

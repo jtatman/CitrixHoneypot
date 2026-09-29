@@ -12,7 +12,12 @@ def test_ioc_path_logged_and_404(index, send, capture, path):
     assert req.responseCode == 404 and path.encode() in body
     ev = capture.events[0]
     assert ev['route_id'] == 'ioc-webshell-probe' and ev['cve'] is None
-    assert path in ev['message'] and 'citrixscan' in ev['ioc_source']
+    assert path in ev['message'] and ev['ioc_source'] == IOC_PATHS[path]
+
+
+def test_watchtowr_webshell_path_cited_correctly(index, send, capture):
+    send(index, 'GET', '/vpn/theme/x.php')
+    assert 'watchtowrlabs' in capture.events[0]['ioc_source']
 
 
 @pytest.mark.parametrize('path', sorted(MISCONFIG_PATHS))

@@ -94,7 +94,33 @@ CVE routes, all detection oracles (canned/random data, never real memory or expl
 - CVE-2023-6549: oversized-`Host` `GET /nf/auth/startwebview.do` -> canned body with nuclei's two required markers.
 - CVE-2026-3055: `GET /wsfed/passive?wctx` -> 302 + `NSC_TASS=<base64>` cookie decoding to a fake `wctx=HONEYPOT-FAKE-LEAK-...` value.
 - CVE-2020-8193/8195/8196: unauth `GET /menu/ss`,`/menu/neo`,`/menu/stc`, `POST /pcidss/report`, `POST /rapi/filedownload` -> fake `/etc/passwd`
-  matching nuclei's `root:.*:0:0:` matcher. Fixed versions verified against NVD (not from citrixscan's table).
+  matching nuclei's `root:.*:0:0:` matcher, HTTP 406 on the two POST requests, `X-NITRO-USER`/`X-NITRO-PASS`/`rand_key` header telemetry when
+  sent -- corroborated independently by Zeop-CyberSec/citrix_adc_netscaler_lfi's Metasploit module, not just nuclei. Fixed versions verified
+  against NVD (not from citrixscan's table).
+
+## GitHub survey, 2026-09-29 (two background research passes, ~59 repos catalogued across 2010-2026)
+
+Historical (pre-2022) and modern (2022-2026) passes via `firecrawl_search`/`firecrawl_scrape` (no GitHub API, per this session's repo-scope
+rule). Full per-repo notes were written to scratch files, not checked into the repo; verified, actionable findings are folded into CLAUDE.md
+and the routes above. Highlights not already covered elsewhere:
+- **fox-it/citrix-netscaler-triage** and **securekomodo/citrixInspector**: independent, actively-maintained gzip-MTIME/build tables (the
+  same Fox-IT technique citrixscan's `RDX_EN_STAMP_TO_VERSION` uses), both more current than citrixscan's table (which stops at
+  14.1-66.59). Not yet fetched/merged -- would let modern profiles finally set `rdx_en_mtime` for 14.1-73.x builds.
+- **watchtowrlabs/watchTowr-vs-Citrix-Netscaler-CVE-2026-88771** and **-PreAuth-RCE-CVE-2026-8452**: verified directly (see CVE-2026-88771
+  and CVE-2026-8452 entries in CLAUDE.md) -- the richest concrete finds of the whole survey, both from research published in the last ~6
+  weeks.
+- **Zeop-CyberSec/citrix_adc_netscaler_lfi**: a real Metasploit module giving the precise 3-request/406-status/`rand_key` chain now folded
+  into `core/routes/cve_2020_8193.py`.
+- **mandiant/ioc-scanner-CVE-2019-19781**, **citrix/ioc-scanner-CVE-2019-19781** (vendor's own), **mandiant/citrix-ioc-scanner-cve-2023-3519**:
+  official/vendor IOC scanners; all are disk/forensic artifact hunting (file paths, shell history), not wire-level request patterns a
+  network-listening honeypot could reproduce -- useful mainly as a cross-check for "these filenames must never appear to exist here".
+- **rapid7/metasploit-framework**'s `citrix_bleed_cve_2023_4966.rb`: the official Metasploit CitrixBleed scanner, corroborating our
+  CVE-2023-4966 route's request/response shape from a second independent source.
+- **No other Citrix/NetScaler honeypot project exists on GitHub** besides this fork's own bontchev/MalwareTech lineage, confirmed by both
+  passes independently. `cybrdude/citrixscan` is a fork/rename of the already-known jtatman/citrixscan, not a new resource.
+- Several CVEs remain genuinely untooled on public GitHub even under this broader IOC-inclusive search (not just formal-PoC search): the
+  2020-8191/8194 pair, most pre-2018 CVEs (2014-7140, the 2015 trio, 2016-9111, 2010-4566, 2017-6316), and the newest 2025 CVEs
+  (7776/8424/12101). CLAUDE.md's "researched, skipped" note now reflects that this was checked, not just assumed.
 
 **Attempt/IOC fingerprinting** (not exploit-confirmation oracles; the honeypot's real job -- see CLAUDE.md's Phase 3 note on this):
 - CVE-2026-88771 (`core/routes/cve_2026_88771.py`): a `${IFS}` login command-injection attempt on `/cgi/login` or `/nf/auth/doAuthentication.do`, and a

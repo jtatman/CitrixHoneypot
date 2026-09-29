@@ -155,11 +155,27 @@ bulletins/public scanner templates such as nuclei/watchTowr before implementing)
 - CVE-2026-3055 (DONE) (`GET /wsfed/passive?wctx` -> 302 + `NSC_TASS=<base64>` cookie decoding to a fake `wctx=...` leak)
 - CTX697096 (2026-09-27, CVE-2026-88771..88778, verified vs the Citrix bulletin): no *exploit* detail public; emulated via the `nsepa.deb`
   patch oracle + build-derived state in core/data/cves_extra.json, PLUS (DONE) CVE-2026-88771 attempt/IOC fingerprinting from GreyNoise's
-  2026-09-28 IOC blog (https://www.greynoise.io/blog/swarming-against-citrix-0-day-exploitation): a `${IFS}` login command-injection
-  attempt on `/cgi/login` or `/nf/auth/doAuthentication.do`, and a GET probe for the published webshell path
-  (`/logon/LogonPoint/custom/.ctxs.receiver` or its `receiver.min[.hex].css` alias) -- see core/routes/cve_2026_88771.py. This is the
+  2026-09-28 IOC blog (https://www.greynoise.io/blog/swarming-against-citrix-0-day-exploitation) PLUS watchTowr Labs' detection-artifact
+  tool (https://github.com/watchtowrlabs/watchTowr-vs-Citrix-Netscaler-CVE-2026-88771, verified against the tool's own README): a `${IFS}`
+  login command-injection attempt on `/cgi/login` or `/nf/auth/doAuthentication.do`; a GET probe for the published webshell path
+  (`/logon/LogonPoint/custom/.ctxs.receiver` or its `receiver.min[.hex].css` alias); and the exact log-poisoning payload string
+  (`pitboss PPE unexpectedly died NSPPE;<cmd>;# X`, spoofing an internal NetScaler PPE log line) matched anywhere in a request regardless
+  of endpoint, since watchTowr's tool doesn't name which path carries it into the logs -- see core/routes/cve_2026_88771.py. This is the
   pattern the rest of Phase 3 should follow for CVEs with no formal PoC/nuclei template: a honeypot's job is to fingerprint and log a
   *recognisable attempt* (a published IOC, injection technique, or scanner tag), not to prove exploitation with a byte-perfect matcher.
+- CVE-2026-8452 (DONE, IOC only) (SAML SP/IdP pre-auth heap overflow -> RCE, distinct from the CTX697096/88771-88778 bulletin, fixed
+  14.1-72.61/13.1-63.18, verified against https://github.com/watchtowrlabs/watchTowr-vs-Citrix-Netscaler-PreAuth-RCE-CVE-2026-8452): no
+  safe detection-request shape (offsets are hardcoded to one specific build in the public tool), but its README confirms the resulting
+  webshell path `/vpn/theme/x.php` -- added to `core/routes/ioc_probes.py`'s `IOC_PATHS`.
+- CVE-2020-8193/8195/8196 (DONE, enriched): the route now also captures `X-NITRO-USER`/`X-NITRO-PASS`/`rand_key` header values (when sent)
+  into the logged event, and returns HTTP 406 (not 200) on the `/pcidss/report` and `/rapi/filedownload` requests -- both corroborated by
+  an independent source, Zeop-CyberSec/citrix_adc_netscaler_lfi (a real Metasploit auxiliary module), not just nuclei's template.
+- **GitHub survey, 2026-09-29**: two background research passes catalogued ~59 repos across the full 2010-2026 CVE range (not just the
+  handful already cited) -- PoCs, scanners, IOC lists, nuclei templates, and a dedicated "any other Citrix honeypot?" sweep (none found;
+  this fork's lineage appears to be the only one). Full catalogs are not checked into the repo (they were scratch research files); the
+  actionable, verified findings are folded into the entries above and into `docs/SCANNER_SURFACE.md`. Notable non-actionable finding:
+  fox-it/citrix-netscaler-triage and securekomodo/citrixInspector both maintain independent, more-current gzip-MTIME build tables than
+  citrixscan's (which stops at 14.1-66.59) -- worth fetching to fill the `rdx_en_mtime` gap for 14.1-73.x builds, not yet done.
 - CVE-2025-5777 "CitrixBleed 2" (DONE) (`POST /p/u/doAuthentication.do` with valueless `login`), CVE-2025-6543, CVE-2025-7775
 - Other products if useful: StoreFront, Citrix Virtual Apps/ADM/SD-WAN and NetScaler Console management UIs (separate profiles, separate ports).
 For each: log a `scan` vs `exploit_attempt` classification, respond with a canned vulnerable-looking body, and never process attacker payloads.

@@ -25,7 +25,8 @@ class Index(Resource):
         method = request.method.decode('ascii', 'replace')
         raw = request.content.read(MAX_BODY) if method == 'POST' else b''
         ctx = Ctx.build(method, request.uri, raw, self.cfg, self.profile, request.getHeader('range') or '',
-                        request.getHeader('host') or '')
+                        request.getHeader('host') or '', request.getHeader('x-nitro-user') or '',
+                        request.getHeader('x-nitro-pass') or '', request.getHeader('rand_key') or '')
 
         tools.logger(request, 'INFO', '{}: {}'.format(method, ctx.path))
         route, hit = dispatch(ctx)

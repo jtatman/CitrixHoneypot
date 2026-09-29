@@ -26,6 +26,9 @@ class Ctx:
     profile: object = None    # core.profile.Profile the honeypot is currently impersonating
     range: str = ''           # Range request header, if any
     host: str = ''            # Host request header, if any (oversized-header probes key on its length)
+    nitro_user: str = ''      # X-NITRO-USER header, if any (CVE-2020-8193 family's auth-bypass signature)
+    nitro_pass: str = ''      # X-NITRO-PASS header, if any
+    rand_key: str = ''        # rand_key header, if any (CVE-2020-8193 family's scraped-token signature)
 
     @property
     def bare(self) -> str:
@@ -34,7 +37,7 @@ class Ctx:
 
     @classmethod
     def build(cls, method: str, uri: bytes, body: bytes, cfg: dict, profile=None, range_header: str = '',
-              host_header: str = '') -> 'Ctx':
+              host_header: str = '', nitro_user: str = '', nitro_pass: str = '', rand_key: str = '') -> 'Ctx':
         path = unquote(uri.decode('utf-8', 'replace'))
         traversal = path.find('/../') != -1
         collapsed = tools.resolve_url(path) if traversal else path
@@ -50,6 +53,9 @@ class Ctx:
             profile=profile,
             range=range_header or '',
             host=host_header or '',
+            nitro_user=nitro_user or '',
+            nitro_pass=nitro_pass or '',
+            rand_key=rand_key or '',
         )
 
 

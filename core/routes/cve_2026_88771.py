@@ -11,10 +11,19 @@ real attack it caught pre-disclosure:
     receiver.min.css and an AliasMatch pattern receiver\\.min\\.[0-9a-f]+\\.css so it isn't obviously a
     dotfile in web logs. Its SHA-256 is 6f5a2a452a7901323abd21879c6cecccb47c06aeeaccb1b467212f3b11e4b1e7.
 
-This route only recognises those two published observables (an injection *attempt* signature, and a
-webshell-checking-in-on-a-patched-box IOC scan) -- it never executes anything from the request, and the
-"webshell" path genuinely doesn't exist on disk here, so it truthfully 404s either way. The webshell
-check-in is logged unconditionally (an attacker checking for their own prior implant is evidence worth
+watchTowr Labs' own detection-artifact tool (https://github.com/watchtowrlabs/watchTowr-vs-Citrix-Netscaler-CVE-2026-88771,
+verified 2026-09-29) confirms the exploitation primitive itself is *log poisoning*: it builds the exact
+payload `pitboss PPE unexpectedly died NSPPE;<command>;# X` (spoofing an internal "pitboss" process-death log
+line from NetScaler's Packet Processing Engine), writes it somewhere that reaches the appliance's own log
+stream, then triggers a "force pickup" that re-parses and executes the poisoned line. The tool doesn't name
+which endpoint carries the payload into the logs, so we can't tie this to one specific path -- but the
+payload string itself is a highly specific, attacker-only signature: no legitimate client would ever send
+it. We match on that literal substring appearing anywhere (any path or POST body), regardless of endpoint.
+
+This route only recognises those three published observables (an injection *attempt* signature, a
+log-poisoning payload signature, and a webshell-checking-in-on-a-patched-box IOC scan) -- it never executes
+anything from the request, and the "webshell" path genuinely doesn't exist on disk here, so it truthfully
+404s either way. The webshell check-in and log-poison signature are logged unconditionally (evidence worth
 capturing regardless of whether this profile currently looks vulnerable or patched).
 """
 import re
@@ -54,3 +63,22 @@ def webshell_checkin(ctx):
                page='404.html', subst={'url': ctx.path}, status=404,
                event={'message': 'Post-exploitation webshell check-in probe',
                       'ioc_source': 'https://www.greynoise.io/blog/swarming-against-citrix-0-day-exploitation'})
+
+
+LOG_POISON_SIGNATURE = 'pitboss PPE unexpectedly died NSPPE'
+
+
+def _log_poison_attempt(ctx):
+    return LOG_POISON_SIGNATURE in ctx.path or LOG_POISON_SIGNATURE in ctx.body
+
+
+def _log_poison_response(ctx, message):
+    return Hit('CRITICAL', 'Detected {} probe ({})'.format(CVE, message), page=ctx.profile.login_page,
+               event={'message': message, 'body': ctx.body[:4096],
+                      'ioc_source': 'https://github.com/watchtowrlabs/watchTowr-vs-Citrix-Netscaler-CVE-2026-88771'})
+
+
+@route('cve-2026-88771-log-poison', _log_poison_attempt, cve=CVE,
+       patched=lambda ctx: _log_poison_response(ctx, 'Log-poisoning attempt (pitboss PPE spoof, patched build)'))
+def log_poison(ctx):
+    return _log_poison_response(ctx, 'Log-poisoning attempt (pitboss PPE spoof)')
