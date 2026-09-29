@@ -139,10 +139,13 @@ bulletins/public scanner templates such as nuclei/watchTowr before implementing)
   nuclei's extractor regex; `POST /logon/LogonPoint/Authentication/GetUserName` session-replay logging)
 - CVE-2023-6549 (DONE) (`GET /nf/auth/startwebview.do` + oversized `Host` -> canned body with the two markers nuclei matches on)
 - CVE-2023-6548 (management interface, authenticated), CVE-2024-8534/8535, CVE-2025-6543/7775/7776/8424:
-  RESEARCHED, SKIPPED -- all are memory-corruption/crash-class bugs (DoS or internals-only RCE) with no public write-up or nuclei
-  template giving a concrete, safe-to-emulate HTTP request+response oracle (unlike the traversal/leak-style CVEs above); 6548 also
-  requires authenticated management-interface access, out of scope for an unauthenticated web honeypot. Their fixed_versions are
-  still in core/data/cves.json (from citrixscan) for state derivation. Revisit if a public detection template appears.
+  RESEARCHED, SKIPPED -- the bar here is "a honeypot fingerprints attempts", not "byte-perfect exploit confirmation" (see the
+  CVE-2026-88771 entry above), so this was checked against IOC/threat-intel write-ups (GreyNoise, Mandiant, watchTowr) too, not just
+  formal PoC/nuclei coverage. Still nothing: these are memory-corruption/crash-class bugs (DoS or internals-only RCE) where even the
+  IOC-focused sources give no network-observable request shape (Mandiant's CVE-2023-3519 IOC scanner, for comparison, is disk/forensic
+  artifact hunting on the appliance itself, not a wire-level pattern a honeypot could reproduce). 6548 also requires authenticated
+  management-interface access, out of scope for an unauthenticated web honeypot. Their fixed_versions are still in
+  core/data/cves.json (from citrixscan) for state derivation. Revisit if a public IOC or detection template ever names a request shape.
 - CVE-2024-6235 (NetScaler *Console*, not ADC/Gateway -- different product/port) has a real nuclei template (credential/session-secret
   exposure) but Console isn't emulated by any current profile; candidate for a future Console profile, not implemented.
 - CVE-2026-3055 (DONE) (`GET /wsfed/passive?wctx` -> 302 + `NSC_TASS=<base64>` cookie decoding to a fake `wctx=...` leak)
