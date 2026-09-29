@@ -7,19 +7,20 @@ This software is free to use providing the user yells
 "Oh no, the cyberhackers are coming!" prior to each installation.
 """
 
+from argparse import ArgumentParser
 from os.path import join
 from socket import gethostname
-from argparse import ArgumentParser
+
+from twisted.internet import endpoints, reactor
+from twisted.python import log
+from twisted.web import server
 
 from core.config import CONFIG
-from core.protocol import Index
 from core.logfile import set_logger
-from core.tools import mkdir, import_plugins, stop_plugins
-
-from twisted.web import server
-from twisted.python import log
-from twisted.internet import reactor, endpoints
-
+from core.profile import DEFAULT_PROFILE, ProfileError, load_profile
+from core.protocol import Index
+from core.tls import ensure_cert
+from core.tools import import_plugins, mkdir, stop_plugins
 
 __VERSION__ = '2.0.2'
 __description__ = 'Citrix CVE-2019-19781 Honeypot by MalwareTech'
@@ -39,6 +40,9 @@ def get_options(cfg_options):
                         help='Directory of the SSL certificate (default: {})'.format(cfg_options['ssldir']))
     parser.add_argument('-s', '--sensor', type=str, default=cfg_options['sensor'],
                         help='Sensor name (default: {})'.format(cfg_options['sensor']))
+
+    parser.add_argument('-P', '--profile', type=str, default=cfg_options['profile_name'],
+                        help='Appliance profile from profiles/ (default: {})'.format(cfg_options['profile_name']))
 
     args = parser.parse_args()
     return args
@@ -67,6 +71,7 @@ def main():
     cfg_options['sensor'] = CONFIG.get('honeypot', 'sensor_name', fallback=gethostname())
     cfg_options['debug'] = CONFIG.get('honeypot', 'verbosity', fallback='info')
     cfg_options['struggle'] = CONFIG.getboolean('honeypot', 'struggle_check', fallback=False)
+    cfg_options['profile_name'] = CONFIG.get('honeypot', 'profile', fallback=DEFAULT_PROFILE)
 
     args = get_options(cfg_options)
 
@@ -74,11 +79,19 @@ def main():
     cfg_options['port'] = args.port
     cfg_options['logfile'] = args.logfile
     cfg_options['ssldir'] = args.ssldir
+    try:
+        cfg_options['profile'] = load_profile(args.profile)
+    except ProfileError as e:
+        raise SystemExit('Error: {}'.format(e))
     cfg_options['sensor'] = args.sensor
 
     set_logger(cfg_options)
 
     log.msg(__description__)
+    profile = cfg_options['profile']
+    log.msg('Profile: {} ({} {})'.format(profile.name, profile.product, profile.build))
+    if ensure_cert(cfg_options['ssldir'], profile.tls_cn):
+        log.msg('Generated a self-signed certificate (CN={}) in {}'.format(profile.tls_cn, cfg_options['ssldir']))
 
     cfg_options['output_plugins'] = import_plugins(cfg_options)
 

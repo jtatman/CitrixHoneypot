@@ -1,0 +1,429 @@
+{
+ "_source": "https://github.com/jtatman/citrixscan (MIT), CVE_DATABASE",
+ "cves": {
+  "CVE-2019-19781": {
+   "advisory": "CTX267027",
+   "affected_config": [],
+   "cvss": 9.8,
+   "cwe": "CWE-22",
+   "exploited_in_wild": true,
+   "fixed_versions": {
+    "10.5": "10.5-70.12",
+    "11.1": "11.1-63.15",
+    "12.0": "12.0-63.13",
+    "12.1": "12.1-55.18",
+    "13.0": "13.0-47.24"
+   },
+   "public_poc": true,
+   "severity": "CRITICAL",
+   "title": "Path Traversal - Unauthenticated RCE (Shitrix)"
+  },
+  "CVE-2020-8300": {
+   "advisory": "CTX316577",
+   "affected_config": [
+    "SAML SP"
+   ],
+   "cvss": 6.5,
+   "cwe": "CWE-287",
+   "exploited_in_wild": false,
+   "fixed_versions": {
+    "12.1": "12.1-62.23",
+    "13.0": "13.0-82.45"
+   },
+   "public_poc": false,
+   "severity": "MEDIUM",
+   "title": "SAML Authentication Hijack"
+  },
+  "CVE-2021-22927": {
+   "advisory": "CTX319135",
+   "affected_config": [
+    "SAML SP"
+   ],
+   "cvss": 7.5,
+   "cwe": "CWE-384",
+   "exploited_in_wild": false,
+   "fixed_versions": {
+    "12.1": "12.1-62.23",
+    "13.0": "13.0-82.45"
+   },
+   "public_poc": false,
+   "severity": "HIGH",
+   "title": "Session Fixation via SAML Logout"
+  },
+  "CVE-2022-27510": {
+   "advisory": "CTX463706",
+   "affected_config": [
+    "Gateway"
+   ],
+   "cvss": 9.8,
+   "cwe": "CWE-288",
+   "exploited_in_wild": true,
+   "fixed_versions": {
+    "12.1": "12.1-65.21",
+    "13.0": "13.0-88.12",
+    "13.1": "13.1-33.47"
+   },
+   "public_poc": true,
+   "severity": "CRITICAL",
+   "title": "Authentication Bypass for Gateway User Capabilities"
+  },
+  "CVE-2022-27518": {
+   "advisory": "CTX474995",
+   "affected_config": [
+    "SAML SP",
+    "SAML IDP"
+   ],
+   "cvss": 9.8,
+   "cwe": "CWE-119",
+   "exploited_in_wild": true,
+   "fixed_versions": {
+    "12.1": "12.1-65.25",
+    "13.0": "13.0-58.32"
+   },
+   "public_poc": true,
+   "severity": "CRITICAL",
+   "title": "Unauthenticated RCE (SAML SP/IDP)"
+  },
+  "CVE-2023-3466": {
+   "advisory": "CTX561482",
+   "affected_config": [],
+   "cvss": 8.3,
+   "cwe": "CWE-79",
+   "exploited_in_wild": false,
+   "fixed_versions": {
+    "12.1": "12.1-65.35",
+    "13.0": "13.0-91.13",
+    "13.1": "13.1-49.13"
+   },
+   "public_poc": true,
+   "severity": "HIGH",
+   "title": "Reflected Cross-Site Scripting (XSS)"
+  },
+  "CVE-2023-3467": {
+   "advisory": "CTX561482",
+   "affected_config": [],
+   "cvss": 8.0,
+   "cwe": "CWE-269",
+   "exploited_in_wild": false,
+   "fixed_versions": {
+    "12.1": "12.1-65.35",
+    "13.0": "13.0-91.13",
+    "13.1": "13.1-49.13"
+   },
+   "public_poc": true,
+   "severity": "HIGH",
+   "title": "Privilege Escalation to Root"
+  },
+  "CVE-2023-3519": {
+   "advisory": "CTX561482",
+   "affected_config": [
+    "Gateway",
+    "AAA vServer"
+   ],
+   "cvss": 9.8,
+   "cwe": "CWE-121",
+   "exploited_in_wild": true,
+   "fixed_versions": {
+    "12.1": "12.1-65.35",
+    "13.0": "13.0-91.13",
+    "13.1": "13.1-49.13"
+   },
+   "public_poc": true,
+   "severity": "CRITICAL",
+   "title": "Unauthenticated RCE via Stack Buffer Overflow"
+  },
+  "CVE-2023-4966": {
+   "advisory": "CTX579459",
+   "affected_config": [
+    "Gateway",
+    "AAA vServer"
+   ],
+   "cvss": 9.4,
+   "cwe": "CWE-119",
+   "exploited_in_wild": true,
+   "fixed_versions": {
+    "13.0": "13.0-92.19",
+    "13.1": "13.1-49.15",
+    "14.1": "14.1-8.50"
+   },
+   "public_poc": true,
+   "severity": "CRITICAL",
+   "title": "Sensitive Information Disclosure (CitrixBleed)"
+  },
+  "CVE-2023-4967": {
+   "advisory": "CTX579459",
+   "affected_config": [
+    "Gateway",
+    "AAA vServer"
+   ],
+   "cvss": 7.5,
+   "cwe": "CWE-119",
+   "exploited_in_wild": false,
+   "fixed_versions": {
+    "13.0": "13.0-92.19",
+    "13.1": "13.1-49.15",
+    "14.1": "14.1-8.50"
+   },
+   "public_poc": false,
+   "severity": "HIGH",
+   "title": "Denial of Service"
+  },
+  "CVE-2023-6548": {
+   "advisory": "CTX584986",
+   "affected_config": [
+    "Management Interface"
+   ],
+   "cvss": 5.5,
+   "cwe": "CWE-94",
+   "exploited_in_wild": true,
+   "fixed_versions": {
+    "13.0": "13.0-92.21",
+    "13.1": "13.1-51.15",
+    "14.1": "14.1-12.35"
+   },
+   "public_poc": false,
+   "severity": "MEDIUM",
+   "title": "Authenticated RCE on Management Interface"
+  },
+  "CVE-2023-6549": {
+   "advisory": "CTX584986",
+   "affected_config": [
+    "Gateway",
+    "AAA vServer"
+   ],
+   "cvss": 8.2,
+   "cwe": "CWE-119",
+   "exploited_in_wild": true,
+   "fixed_versions": {
+    "13.0": "13.0-92.21",
+    "13.1": "13.1-51.15",
+    "14.1": "14.1-12.35"
+   },
+   "public_poc": true,
+   "severity": "HIGH",
+   "title": "Buffer Overflow - DoS (Zero-Day)"
+  },
+  "CVE-2024-5491": {
+   "advisory": "CTX677888",
+   "affected_config": [],
+   "cvss": 7.1,
+   "cwe": "CWE-400",
+   "exploited_in_wild": false,
+   "fixed_versions": {
+    "13.0": "13.0-92.31",
+    "13.1": "13.1-51.15",
+    "14.1": "14.1-25.53"
+   },
+   "public_poc": false,
+   "severity": "HIGH",
+   "title": "Unauthenticated Denial of Service"
+  },
+  "CVE-2024-5492": {
+   "advisory": "CTX677888",
+   "affected_config": [],
+   "cvss": 5.1,
+   "cwe": "CWE-601",
+   "exploited_in_wild": false,
+   "fixed_versions": {
+    "13.0": "13.0-92.31",
+    "13.1": "13.1-51.15",
+    "14.1": "14.1-25.53"
+   },
+   "public_poc": false,
+   "severity": "MEDIUM",
+   "title": "Open Redirect Vulnerability"
+  },
+  "CVE-2024-8534": {
+   "advisory": "CTX691608",
+   "affected_config": [
+    "Gateway",
+    "AAA vServer"
+   ],
+   "cvss": 8.4,
+   "cwe": "CWE-119",
+   "exploited_in_wild": false,
+   "fixed_versions": {
+    "13.1": "13.1-55.18",
+    "14.1": "14.1-29.72"
+   },
+   "public_poc": false,
+   "severity": "HIGH",
+   "title": "Memory Safety Violation - DoS"
+  },
+  "CVE-2024-8535": {
+   "advisory": "CTX691608",
+   "affected_config": [
+    "Gateway"
+   ],
+   "cvss": 5.8,
+   "cwe": "CWE-269",
+   "exploited_in_wild": false,
+   "fixed_versions": {
+    "13.1": "13.1-55.18",
+    "14.1": "14.1-29.72"
+   },
+   "public_poc": false,
+   "severity": "MEDIUM",
+   "title": "Authenticated User Privilege Escalation"
+  },
+  "CVE-2025-12101": {
+   "advisory": "CTX694844",
+   "affected_config": [],
+   "cvss": 5.1,
+   "cwe": "CWE-200",
+   "exploited_in_wild": false,
+   "fixed_versions": {
+    "13.1": "13.1-55.34",
+    "14.1": "14.1-62.16"
+   },
+   "public_poc": false,
+   "severity": "MEDIUM",
+   "title": "Authenticated User Information Disclosure"
+  },
+  "CVE-2025-5349": {
+   "advisory": "CTX686543",
+   "affected_config": [
+    "Management Interface"
+   ],
+   "cvss": 5.1,
+   "cwe": "CWE-284",
+   "exploited_in_wild": false,
+   "fixed_versions": {
+    "13.1": "13.1-55.18",
+    "14.1": "14.1-29.72"
+   },
+   "public_poc": false,
+   "severity": "MEDIUM",
+   "title": "Management Interface Improper Access Control"
+  },
+  "CVE-2025-5777": {
+   "advisory": "CTX686543",
+   "affected_config": [
+    "Gateway",
+    "AAA vServer"
+   ],
+   "cvss": 9.3,
+   "cwe": "CWE-125",
+   "exploited_in_wild": true,
+   "fixed_versions": {
+    "13.1": "13.1-55.18",
+    "13.1-FIPS": "13.1-37.211",
+    "14.1": "14.1-29.72"
+   },
+   "public_poc": true,
+   "severity": "CRITICAL",
+   "title": "Insufficient Input Validation - Memory Overread (CitrixBleed 2)"
+  },
+  "CVE-2025-6543": {
+   "advisory": "CTX689025",
+   "affected_config": [
+    "Gateway",
+    "AAA vServer"
+   ],
+   "cvss": 9.2,
+   "cwe": "CWE-119",
+   "exploited_in_wild": true,
+   "fixed_versions": {
+    "13.1": "13.1-55.27",
+    "13.1-FIPS": "13.1-37.220",
+    "14.1": "14.1-38.32"
+   },
+   "public_poc": false,
+   "severity": "CRITICAL",
+   "title": "Memory Overflow - Unintended Control Flow (CitrixBleed 2.5)"
+  },
+  "CVE-2025-7775": {
+   "advisory": "CTX691702",
+   "affected_config": [
+    "Gateway"
+   ],
+   "cvss": 9.2,
+   "cwe": "CWE-119",
+   "exploited_in_wild": true,
+   "fixed_versions": {
+    "13.1": "13.1-55.34",
+    "13.1-FIPS": "13.1-37.226",
+    "14.1": "14.1-47.48"
+   },
+   "public_poc": true,
+   "severity": "CRITICAL",
+   "title": "Memory Overflow - RCE/DoS (CitrixBleed 3)"
+  },
+  "CVE-2025-7776": {
+   "advisory": "CTX691702",
+   "affected_config": [
+    "Gateway",
+    "PCoIP"
+   ],
+   "cvss": 8.8,
+   "cwe": "CWE-119",
+   "exploited_in_wild": false,
+   "fixed_versions": {
+    "13.1": "13.1-55.34",
+    "14.1": "14.1-47.48"
+   },
+   "public_poc": false,
+   "severity": "HIGH",
+   "title": "Memory Overflow - DoS via PCoIP Profiles"
+  },
+  "CVE-2025-8424": {
+   "advisory": "CTX691702",
+   "affected_config": [
+    "Management Interface"
+   ],
+   "cvss": 8.7,
+   "cwe": "CWE-284",
+   "exploited_in_wild": false,
+   "fixed_versions": {
+    "13.1": "13.1-55.34",
+    "13.1-FIPS": "13.1-37.226",
+    "14.1": "14.1-47.48"
+   },
+   "public_poc": false,
+   "severity": "HIGH",
+   "title": "Management Interface Improper Access Control"
+  },
+  "CVE-2026-3055": {
+   "advisory": "CTX696300",
+   "affected_config": [
+    "SAML IDP"
+   ],
+   "cvss": 9.3,
+   "cwe": "CWE-125",
+   "exploited_in_wild": false,
+   "fixed_versions": {
+    "13.1": "13.1-62.23",
+    "13.1-FIPS": "13.1-37.262",
+    "14.1": "14.1-66.59"
+   },
+   "public_poc": false,
+   "severity": "CRITICAL",
+   "title": "Memory Overread via Insufficient Input Validation"
+  },
+  "CVE-2026-4368": {
+   "advisory": "CTX696300",
+   "affected_config": [
+    "Gateway",
+    "AAA vServer"
+   ],
+   "cvss": 7.7,
+   "cwe": "CWE-362",
+   "exploited_in_wild": false,
+   "fixed_versions": {
+    "13.1": "13.1-62.23",
+    "13.1-FIPS": "13.1-37.262",
+    "14.1": "14.1-66.59"
+   },
+   "public_poc": false,
+   "severity": "HIGH",
+   "title": "Race Condition Leading to User Session Mixup"
+  }
+ },
+ "eol_branches": [
+  "10.5",
+  "11.1",
+  "12.0",
+  "12.1",
+  "13.0"
+ ]
+}

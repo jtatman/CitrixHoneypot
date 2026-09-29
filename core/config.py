@@ -1,6 +1,5 @@
 
 import configparser
-
 from os import environ
 
 

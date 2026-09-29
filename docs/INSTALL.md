@@ -214,7 +214,7 @@ Activate the virtual environment and install the necessary dependencies
 ```bash
 $ source citrix-env/bin/activate
 (citrix-env) $ pip install --upgrade pip
-(citrix-env) $ pip install --upgrade -r requirements.txt
+(citrix-env) $ pip install --upgrade -r requirements.txt   # add requirements-mysql.txt for the MySQL plugin
 ```
 
 ## Step 7: Create a configuration file
@@ -343,6 +343,6 @@ dependencies and restart the honeypot:
 ```bash
 ./bin/honeypot stop
 git pull
-pip install --upgrade -r requirements.txt
+pip install --upgrade -r requirements.txt   # add requirements-mysql.txt for the MySQL plugin
 ./bin/honeypot start
 ```

@@ -1,0 +1,18 @@
+# Recent NetScaler Gateway build BEFORE the September 2026 bulletin CTX697096 (fixed in 14.1-73.37).
+# CVE states derive from the build: vulnerable to CVE-2026-88771..88778, but already patched for older CVEs
+# (2025-5777, 2023-3519, ...). Sizes: https://github.com/technion/netscaler_scanner (fingerprint.sh).
+# Not verified against a real appliance: cookies/headers (legacy set), 404 page, stand-in file bodies.
+name: adc-14.1-73.33-vulnerable
+product: NetScaler Gateway
+build: "14.1-73.33"
+server_header: Apache
+login_page: logonpoint.html
+mangle_connection: true          # Cneonction: Close (NetScaler quirk)
+features: [netscaler-surface]
+epa_deb_size: 11230664           # nsepa.deb size that maps to 14.1-73.33 (pre-CTX697096)
+# rdx_en_mtime: unknown for 73.x (citrixscan's table stops at 14.1-66.59); route disabled until set
+not_found:
+  status: 404
+  page: 404.html
+tls:
+  subject_cn: localhost
