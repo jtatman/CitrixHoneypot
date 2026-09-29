@@ -1,13 +1,183 @@
 {
- "_source": "Citrix bulletin CTX697096 (2026-09-27), https://support.citrix.com/external/article/CTX697096/citrix-netscaler-adc-and-citrix-netscale.html; cross-checked with https://github.com/technion/netscaler_scanner. Fixed-build keys are branches; FIPS/NDcPP builds (14.1-FIPS 73.37, 13.1-FIPS/NDcPP 37.279) are not modelled.",
+ "_source": "Citrix bulletin CTX697096 (2026-09-27), https://support.citrix.com/external/article/CTX697096/citrix-netscaler-adc-and-citrix-netscale.html; cross-checked with https://github.com/technion/netscaler_scanner. Fixed-build keys are branches; FIPS/NDcPP builds (14.1-FIPS 73.37, 13.1-FIPS/NDcPP 37.279) are not modelled.; CVE-2020-8193/8195/8196 fixed versions verified against NVD (nvd.nist.gov/vuln/detail/CVE-2020-819{3,5,6}), advisory CTX276688",
  "cves": {
-  "CVE-2026-88771": {"title": "Remote code execution via improper input validation (all deployments)", "cvss": 9.5, "severity": "CRITICAL", "advisory": "CTX697096", "affected_config": [], "fixed_versions": {"14.1": "14.1-73.37", "13.1": "13.1-64.23"}, "exploited_in_wild": true, "public_poc": false, "cwe": "CWE-20"},
-  "CVE-2026-88772": {"title": "DTLS memory overflow, RCE or DoS", "cvss": 9.5, "severity": "CRITICAL", "advisory": "CTX697096", "affected_config": ["DTLS"], "fixed_versions": {"14.1": "14.1-73.37", "13.1": "13.1-64.23"}, "exploited_in_wild": true, "public_poc": false, "cwe": "CWE-119"},
-  "CVE-2026-88773": {"title": "HTTP request smuggling", "cvss": 9.3, "severity": "CRITICAL", "advisory": "CTX697096", "affected_config": ["HTTP vserver"], "fixed_versions": {"14.1": "14.1-73.37", "13.1": "13.1-64.23"}, "exploited_in_wild": false, "public_poc": false, "cwe": "CWE-444"},
-  "CVE-2026-88774": {"title": "Feature policy bypass via HTTP URL expression", "cvss": 7.0, "severity": "HIGH", "advisory": "CTX697096", "affected_config": ["HTTP URL expression"], "fixed_versions": {"14.1": "14.1-73.37", "13.1": "13.1-64.23"}, "exploited_in_wild": false, "public_poc": false, "cwe": "CWE-16"},
-  "CVE-2026-88775": {"title": "Gateway/AAA memory overflow", "cvss": 8.8, "severity": "HIGH", "advisory": "CTX697096", "affected_config": ["Gateway", "AAA vServer"], "fixed_versions": {"14.1": "14.1-73.37", "13.1": "13.1-64.23"}, "exploited_in_wild": false, "public_poc": false, "cwe": "CWE-119"},
-  "CVE-2026-88776": {"title": "Oracle LB vserver memory overflow", "cvss": 8.8, "severity": "HIGH", "advisory": "CTX697096", "affected_config": ["LB Oracle vserver"], "fixed_versions": {"14.1": "14.1-73.37", "13.1": "13.1-64.23"}, "exploited_in_wild": false, "public_poc": false, "cwe": "CWE-119"},
-  "CVE-2026-88777": {"title": "Non-HTTP L7 (FTP/RTSP/DNS64/NAT64) memory overflow", "cvss": 8.8, "severity": "HIGH", "advisory": "CTX697096", "affected_config": ["non-HTTP L7 feature"], "fixed_versions": {"14.1": "14.1-73.37", "13.1": "13.1-64.23"}, "exploited_in_wild": false, "public_poc": false, "cwe": "CWE-119"},
-  "CVE-2026-88778": {"title": "TCP ISN prediction (config change also required)", "cvss": 8.8, "severity": "HIGH", "advisory": "CTX697096", "affected_config": ["Enhanced ISN Generation disabled"], "fixed_versions": {"14.1": "14.1-73.37", "13.1": "13.1-64.23"}, "exploited_in_wild": false, "public_poc": false, "cwe": "CWE-342"}
+  "CVE-2020-8193": {
+   "advisory": "CTX276688",
+   "affected_config": [],
+   "cvss": 6.5,
+   "cwe": "CWE-284",
+   "exploited_in_wild": true,
+   "fixed_versions": {
+    "10.5": "10.5-70.18",
+    "11.1": "11.1-64.14",
+    "12.0": "12.0-63.21",
+    "12.1": "12.1-57.18",
+    "13.0": "13.0-58.30"
+   },
+   "public_poc": true,
+   "severity": "MEDIUM",
+   "title": "Unauthenticated access to restricted URL endpoints (access control bypass)"
+  },
+  "CVE-2020-8195": {
+   "advisory": "CTX276688",
+   "affected_config": [],
+   "cvss": 6.5,
+   "cwe": "CWE-20",
+   "exploited_in_wild": true,
+   "fixed_versions": {
+    "10.5": "10.5-70.18",
+    "11.1": "11.1-64.14",
+    "12.0": "12.0-63.21",
+    "12.1": "12.1-57.18",
+    "13.0": "13.0-58.30"
+   },
+   "public_poc": false,
+   "severity": "MEDIUM",
+   "title": "Improper input validation, limited information disclosure to low-privileged users"
+  },
+  "CVE-2020-8196": {
+   "advisory": "CTX276688",
+   "affected_config": [],
+   "cvss": 4.3,
+   "cwe": "CWE-284",
+   "exploited_in_wild": true,
+   "fixed_versions": {
+    "10.5": "10.5-70.18",
+    "11.1": "11.1-64.14",
+    "12.0": "12.0-63.21",
+    "12.1": "12.1-57.18",
+    "13.0": "13.0-58.30"
+   },
+   "public_poc": false,
+   "severity": "MEDIUM",
+   "title": "Improper access control, limited information disclosure to low-privileged users"
+  },
+  "CVE-2026-88771": {
+   "advisory": "CTX697096",
+   "affected_config": [],
+   "cvss": 9.5,
+   "cwe": "CWE-20",
+   "exploited_in_wild": true,
+   "fixed_versions": {
+    "13.1": "13.1-64.23",
+    "14.1": "14.1-73.37"
+   },
+   "public_poc": false,
+   "severity": "CRITICAL",
+   "title": "Remote code execution via improper input validation (all deployments)"
+  },
+  "CVE-2026-88772": {
+   "advisory": "CTX697096",
+   "affected_config": [
+    "DTLS"
+   ],
+   "cvss": 9.5,
+   "cwe": "CWE-119",
+   "exploited_in_wild": true,
+   "fixed_versions": {
+    "13.1": "13.1-64.23",
+    "14.1": "14.1-73.37"
+   },
+   "public_poc": false,
+   "severity": "CRITICAL",
+   "title": "DTLS memory overflow, RCE or DoS"
+  },
+  "CVE-2026-88773": {
+   "advisory": "CTX697096",
+   "affected_config": [
+    "HTTP vserver"
+   ],
+   "cvss": 9.3,
+   "cwe": "CWE-444",
+   "exploited_in_wild": false,
+   "fixed_versions": {
+    "13.1": "13.1-64.23",
+    "14.1": "14.1-73.37"
+   },
+   "public_poc": false,
+   "severity": "CRITICAL",
+   "title": "HTTP request smuggling"
+  },
+  "CVE-2026-88774": {
+   "advisory": "CTX697096",
+   "affected_config": [
+    "HTTP URL expression"
+   ],
+   "cvss": 7.0,
+   "cwe": "CWE-16",
+   "exploited_in_wild": false,
+   "fixed_versions": {
+    "13.1": "13.1-64.23",
+    "14.1": "14.1-73.37"
+   },
+   "public_poc": false,
+   "severity": "HIGH",
+   "title": "Feature policy bypass via HTTP URL expression"
+  },
+  "CVE-2026-88775": {
+   "advisory": "CTX697096",
+   "affected_config": [
+    "Gateway",
+    "AAA vServer"
+   ],
+   "cvss": 8.8,
+   "cwe": "CWE-119",
+   "exploited_in_wild": false,
+   "fixed_versions": {
+    "13.1": "13.1-64.23",
+    "14.1": "14.1-73.37"
+   },
+   "public_poc": false,
+   "severity": "HIGH",
+   "title": "Gateway/AAA memory overflow"
+  },
+  "CVE-2026-88776": {
+   "advisory": "CTX697096",
+   "affected_config": [
+    "LB Oracle vserver"
+   ],
+   "cvss": 8.8,
+   "cwe": "CWE-119",
+   "exploited_in_wild": false,
+   "fixed_versions": {
+    "13.1": "13.1-64.23",
+    "14.1": "14.1-73.37"
+   },
+   "public_poc": false,
+   "severity": "HIGH",
+   "title": "Oracle LB vserver memory overflow"
+  },
+  "CVE-2026-88777": {
+   "advisory": "CTX697096",
+   "affected_config": [
+    "non-HTTP L7 feature"
+   ],
+   "cvss": 8.8,
+   "cwe": "CWE-119",
+   "exploited_in_wild": false,
+   "fixed_versions": {
+    "13.1": "13.1-64.23",
+    "14.1": "14.1-73.37"
+   },
+   "public_poc": false,
+   "severity": "HIGH",
+   "title": "Non-HTTP L7 (FTP/RTSP/DNS64/NAT64) memory overflow"
+  },
+  "CVE-2026-88778": {
+   "advisory": "CTX697096",
+   "affected_config": [
+    "Enhanced ISN Generation disabled"
+   ],
+   "cvss": 8.8,
+   "cwe": "CWE-342",
+   "exploited_in_wild": false,
+   "fixed_versions": {
+    "13.1": "13.1-64.23",
+    "14.1": "14.1-73.37"
+   },
+   "public_poc": false,
+   "severity": "HIGH",
+   "title": "TCP ISN prediction (config change also required)"
+  }
  }
 }

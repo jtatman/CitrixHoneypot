@@ -129,8 +129,11 @@ Key takeaways: vigolium has no Citrix modules of its own (its known-issue-scan e
 **Phase 3 - Recent Citrix vulnerability surfaces (STARTED: netscaler-surface fingerprint, patch oracle, 404 default, plus the memory-overread family
 below; see docs/SCANNER_SURFACE.md for what remains)** (candidate list from memory of public advisories - verify each against NVD/Citrix
 bulletins/public scanner templates such as nuclei/watchTowr before implementing)
-- CVE-2019-19781 (done; extend), CVE-2020-8193/8195/8196 (unauth `/pcidss/report`, `/menu/stapi`, `/rapi/filedownload`)
-- CVE-2022-27510 / 27518 (Gateway auth bypass, `/cgi/setclient`, SAML/`/vpn/` endpoints)
+- CVE-2019-19781 (done; extend), CVE-2020-8193/8195/8196 "memory-overread family" (DONE) (unauth `/menu/ss`,`/menu/neo`,`/menu/stc`, `/pcidss/report`,
+  `/rapi/filedownload` -> fake `/etc/passwd`; fixed versions verified against NVD, advisory CTX276688; 8195/8196 share the state, no distinct public request shape found)
+- CVE-2022-27510 / 27518 (Gateway auth bypass / SAML RCE): SKIPPED for now -- no nuclei template and no public write-up gives a
+  concrete, safe-to-emulate HTTP request shape (write-ups describe internals, not a PoC). fixed_versions are in core/data/cves.json
+  (from citrixscan) for state derivation only; add a route if/when a public detection template appears.
 - CVE-2023-3519 "memory-overread family" (DONE) (gateway RCE; `POST /saml/login` -> `SAML Assertion verification failed;`)
 - CVE-2023-4966 "CitrixBleed" (DONE) (`GET /oauth/idp/.well-known/openid-configuration` + oversized `Host` -> canned *fake* hex leak matching
   nuclei's extractor regex; `POST /logon/LogonPoint/Authentication/GetUserName` session-replay logging)

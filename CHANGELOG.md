@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * NetScaler surface (`netscaler-surface`): Citrix logon page markers, `Cneonction` header, `nsepa.deb` size patch oracle for CTX697096 with Range support, `rdx_en.json.gz` gzip-MTIME fingerprint
 * Routes for CVE-2025-5777 (CitrixBleed 2, fake canned leak) and CVE-2023-3519; CTX697096 (CVE-2026-88771..88778) added to the CVE table
 * Memory-overread detection oracles: CVE-2023-4966 (CitrixBleed), CVE-2023-6549, CVE-2026-3055 (all canned/random fake data, never real memory)
+* CVE-2020-8193/8195/8196 unauthenticated-endpoint + LFI detection oracle (fake /etc/passwd, fixed versions verified against NVD)
 
 ### Changed
 
