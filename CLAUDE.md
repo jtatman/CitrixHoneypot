@@ -24,7 +24,7 @@ core/profile.py        Profile dataclass + YAML loader/validator; `Profile.state
 core/cvedb.py          fix-version lookup over core/data/cves.json (25 CVEs, vendored from jtatman/citrixscan via tools/extract_cves.py)
 core/tls.py            ensure_cert(): self-signed key/cert generated at startup if missing (CN from the profile)
 profiles/              <name>.yaml appliance profiles (select with `--profile` / `[honeypot] profile` / env HONEYPOT_PROFILE)
-core/routes/           (order matters: the list in routes/__init__.py is match order, catch-alls last) declarative route table (Route/Hit/Ctx in __init__.py; one module per CVE/product family, e.g. cve_2019_19781.py)
+core/routes/           (order matters: the list in routes/__init__.py is match order, catch-alls last) declarative route table (Route/Hit/Ctx in __init__.py; one module per CVE/product family, e.g. cve_2019_19781.py; ioc_probes.py is CVE-agnostic attempt/IOC logging)
 tests/                 pytest golden tests driving Index.render() with DummyRequest (run from anywhere; conftest chdirs to repo root)
 core/tools.py          helpers: url normalisation, IP helpers, event writing, plugin loading
 core/config.py         ConfigParser + env-var override (SECTION_OPTION), reads etc/honeypot.cfg.base, etc/honeypot.cfg, ./honeypot.cfg
@@ -138,7 +138,11 @@ bulletins/public scanner templates such as nuclei/watchTowr before implementing)
 - CVE-2023-4966 "CitrixBleed" (DONE) (`GET /oauth/idp/.well-known/openid-configuration` + oversized `Host` -> canned *fake* hex leak matching
   nuclei's extractor regex; `POST /logon/LogonPoint/Authentication/GetUserName` session-replay logging)
 - CVE-2023-6549 (DONE) (`GET /nf/auth/startwebview.do` + oversized `Host` -> canned body with the two markers nuclei matches on)
-- CVE-2023-6548 (management interface, authenticated), CVE-2024-8534/8535, CVE-2025-6543/7775/7776/8424:
+- CVE-2023-6548 (the appliance's own **NSIP/CLIP/SNIP management interface** -- built into every ADC/Gateway box, distinct from
+  NetScaler *Console*/ADM, a separate fleet-management product with its own CVEs like 2024-6235; requires authenticated access to it,
+  which historically meant either misconfigured internet exposure or an attacker pivoting there after breaching the internal network
+  -- see `ioc_probes.py`'s `MISCONFIG_PATHS` for the generic, unauthenticated "is this surface reachable at all" signal we DO emit),
+  CVE-2024-8534/8535, CVE-2025-6543/7775/7776/8424:
   RESEARCHED, SKIPPED -- the bar here is "a honeypot fingerprints attempts", not "byte-perfect exploit confirmation" (see the
   CVE-2026-88771 entry above), so this was checked against IOC/threat-intel write-ups (GreyNoise, Mandiant, watchTowr) too, not just
   formal PoC/nuclei coverage. Still nothing: these are memory-corruption/crash-class bugs (DoS or internals-only RCE) where even the

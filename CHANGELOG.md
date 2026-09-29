@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Memory-overread detection oracles: CVE-2023-4966 (CitrixBleed), CVE-2023-6549, CVE-2026-3055 (all canned/random fake data, never real memory)
 * CVE-2020-8193/8195/8196 unauthenticated-endpoint + LFI detection oracle (fake /etc/passwd, fixed versions verified against NVD)
 * CVE-2026-88771 attempt/IOC fingerprinting (login command-injection attempt, webshell check-in probe), from GreyNoise's published IOCs
+* Generic, CVE-agnostic IOC/misconfig-path logging (`core/routes/ioc_probes.py`), vendored from citrixscan's IOC_PATHS/MISCONFIG_PATHS
 
 ### Changed
 

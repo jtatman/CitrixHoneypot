@@ -59,14 +59,26 @@ track. Older items worth knowing: 47901/47902/47913/47930 (CVE-2019-19781), 4903
 WAF bypass via header pollution), 35180 (CVE-2014-7140 SOAP handler RCE), 47112 (SD-WAN CVE-2019-12989/12991), 42345/42346 (SD-WAN/CloudBridge
 CVE-2017-6316), 47561/47951 (StoreFront/XenMobile XXE).
 
-## Live tool run, 2026-09-29 (partial)
+## Live tool run, 2026-09-29 (both completed, run via background subagents on their second attempt)
 
 Built katana v1.7.0 and vigolium from source in-session (vigolium needed a one-line stub for its bundled `jstangle` helper, unrelated to this repo, to
-compile). Both needed `NO_PROXY=127.0.0.1` and closed stdin to run at all in this sandbox (they otherwise read targets from stdin or hang on the
-outbound proxy). katana's own tech-detection reported "Citrix" against the `adc-14.1-73.33-vulnerable` profile, confirming the logon-page markers work.
-A `vigolium scan` was started against the same profile (discovery -> spidering -> dynamic-assessment) and was mid-run, with an early passive
-`clickjacking-detect` finding, when the run was interrupted; its known-issue-scan (nuclei-in-process) results against our CVE routes were not seen.
-Not re-attempted this session. `technion/netscaler_scanner`'s `fingerprint.sh` (see below) *did* run to completion and confirmed the patch oracle.
+compile; binaries reused afterward, no rebuild needed). Both needed `NO_PROXY=127.0.0.1` and closed stdin to run at all in this sandbox (they otherwise
+read targets from stdin or hang on the outbound proxy).
+
+**katana**: crawled `adc-14.1-73.33-vulnerable` in ~6s, found 2 endpoints (`/`, the logon page's one linked script), both 200. Its own tech-detection
+reported `["Citrix", "Apache HTTP Server", "Microsoft ASP.NET"]` -- confirms the logon-page markers (`ctxs.core.min.js`, `CTXS.*` globals) work.
+Shallow crawl depth: the login form posts to `/cgi/login` but katana's default (non-headless) mode doesn't submit forms, so it never explored further.
+
+**vigolium**: `scan -t https://127.0.0.1:8448 -S --intensity balanced --known-issue-scan-templates-dir <sparse nuclei-templates checkout> -o ... --format
+jsonl` ran to completion in ~7m33s (discovery -> spidering -> dynamic-assessment -> known-issue-scan/nuclei), no crashes. Findings: 0 critical/high, 1
+low, 1 info. It reached and logged hits against `/vpn/../vpns/cfg/smb.conf`, `/saml/login`, `/wsfed/passive` and `/p/u/doAuthentication.do`, and its
+nuclei phase actually **fired our CVE-2025-5777 route** (`[WARNING] Detected CVE-2025-5777 probe` in the honeypot's own log) -- the first end-to-end
+confirmation that a real scanner's detection logic triggers one of these routes, not just a hand-crafted curl request. It did *not* reach
+`/oauth/idp/.well-known/openid-configuration`, `/nf/auth/startwebview.do`, `/logon/LogonPoint/tmindex.html`, or `/epa/scripts/linux/nsepa.deb` at
+`--intensity balanced` -- nothing links to them from the pages it crawled, so a scanner without out-of-band knowledge of those exact paths won't find
+them either. Worth revisiting with `--intensity deep` or a seeded path list.
+
+`technion/netscaler_scanner`'s `fingerprint.sh` (see below) also ran to completion and confirmed the patch oracle.
 
 ## Implemented so far (Phase 3)
 
@@ -81,6 +93,15 @@ CVE routes, all detection oracles (canned/random data, never real memory or expl
   containing a fake 100-hex-char string with nuclei's expected fixed suffix; `POST .../GetUserName` session-replay logging.
 - CVE-2023-6549: oversized-`Host` `GET /nf/auth/startwebview.do` -> canned body with nuclei's two required markers.
 - CVE-2026-3055: `GET /wsfed/passive?wctx` -> 302 + `NSC_TASS=<base64>` cookie decoding to a fake `wctx=HONEYPOT-FAKE-LEAK-...` value.
+- CVE-2020-8193/8195/8196: unauth `GET /menu/ss`,`/menu/neo`,`/menu/stc`, `POST /pcidss/report`, `POST /rapi/filedownload` -> fake `/etc/passwd`
+  matching nuclei's `root:.*:0:0:` matcher. Fixed versions verified against NVD (not from citrixscan's table).
+
+**Attempt/IOC fingerprinting** (not exploit-confirmation oracles; the honeypot's real job -- see CLAUDE.md's Phase 3 note on this):
+- CVE-2026-88771 (`core/routes/cve_2026_88771.py`): a `${IFS}` login command-injection attempt on `/cgi/login` or `/nf/auth/doAuthentication.do`, and a
+  webshell check-in probe for a published path, both from GreyNoise's 2026-09-28 IOC blog (see CLAUDE.md).
+- Generic, CVE-agnostic (`core/routes/ioc_probes.py`, from citrixscan's `IOC_PATHS`/`MISCONFIG_PATHS`): known webshell/backdoor filenames from
+  CVE-2023-3519 campaigns + CISA AA23-201A, and NSIP/CLIP/SNIP management-interface paths (`/nitro/v1/config/*`, `/gui/`, `/nsconfig/ns.conf`) that
+  should never look reachable on a clean profile -- see CLAUDE.md's NSIP-vs-Console clarification.
 
 Bug found and fixed while adding these: `dispatch()`'s generic "no route-specific `patched=` handler" fallback used `dataclasses.replace()` on the
 vulnerable `Hit`, which only overrides `page`/`status`/`event` - a route's `data`/`cookies`/`headers` (used by all three new oversized-Host/redirect
