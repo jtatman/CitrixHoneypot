@@ -1,31 +1,30 @@
 
+from datetime import datetime, timezone
 from errno import EEXIST
 from os import makedirs, path
-from datetime import datetime
-from socket import socket, AF_INET, SOCK_DGRAM
-
-from core.config import CONFIG
+from re import compile as re_compile
+from socket import AF_INET, SOCK_DGRAM, socket
+from urllib.parse import urlsplit, urlunsplit
 
 from twisted.python import log
 
-try:
-    from urllib.parse import urlsplit, urlunsplit
-except ImportError:
-    from urlparse import urlsplit, urlunsplit
+from core.config import CONFIG
+
+_CONTROL = re_compile(r'[\x00-\x1f\x7f]')
 
 
-def get_real_ip (request):
+def get_real_ip(request):
     ip = request.getHeader('X-Real-IP')
     return request.getClientAddress().host if ip is None else ip
 
 
-def get_real_port (request):
+def get_real_port(request):
     port = request.getHeader('X-Real-Port')
     return request.getClientAddress().port if port is None else port
 
 
 def getutctime(unixtime):
-    return datetime.utcfromtimestamp(unixtime).isoformat() + 'Z'
+    return datetime.fromtimestamp(unixtime, timezone.utc).replace(tzinfo=None).isoformat() + 'Z'
 
 
 def getlocalip():
@@ -33,7 +32,7 @@ def getlocalip():
     try:
         s.connect(('10.255.255.255', 1))
         ip = s.getsockname()[0]
-    except:
+    except OSError:
         ip = '127.0.0.1'
     finally:
         s.close()
@@ -58,6 +57,8 @@ def resolve_url(url):
 def logger(request, log_level, msg):
     ip = get_real_ip(request)
     port = get_real_port(request)
+    # attacker-controlled text: escape control characters to prevent log injection
+    msg = _CONTROL.sub(lambda m: '\\x{:02x}'.format(ord(m.group())), msg)
     log.msg('[{}] ({}:{}): {}'.format(log_level, ip, port, msg))
 
 

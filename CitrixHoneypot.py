@@ -7,19 +7,18 @@ This software is free to use providing the user yells
 "Oh no, the cyberhackers are coming!" prior to each installation.
 """
 
+from argparse import ArgumentParser
 from os.path import join
 from socket import gethostname
-from argparse import ArgumentParser
+
+from twisted.internet import endpoints, reactor
+from twisted.python import log
+from twisted.web import server
 
 from core.config import CONFIG
-from core.protocol import Index
 from core.logfile import set_logger
-from core.tools import mkdir, import_plugins, stop_plugins
-
-from twisted.web import server
-from twisted.python import log
-from twisted.internet import reactor, endpoints
-
+from core.protocol import Index
+from core.tools import import_plugins, mkdir, stop_plugins
 
 __VERSION__ = '2.0.2'
 __description__ = 'Citrix CVE-2019-19781 Honeypot by MalwareTech'

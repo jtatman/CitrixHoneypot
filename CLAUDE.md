@@ -19,7 +19,9 @@ Ground rules:
 
 ```
 CitrixHoneypot.py      entry point: argparse + config, Twisted SSL endpoint, Site(Index)
-core/protocol.py       Index(Resource): ALL request handling (HEAD/GET/POST), page cache, response headers
+core/protocol.py       Index(Resource): single render() entry point: build Ctx -> dispatch routes -> log/emit event -> respond
+core/routes/           declarative route table (Route/Hit/Ctx in __init__.py; one module per CVE/product family, e.g. cve_2019_19781.py)
+tests/                 pytest golden tests driving Index.render() with DummyRequest (run from anywhere; conftest chdirs to repo root)
 core/tools.py          helpers: url normalisation, IP helpers, event writing, plugin loading
 core/config.py         ConfigParser + env-var override (SECTION_OPTION), reads etc/honeypot.cfg.base, etc/honeypot.cfg, ./honeypot.cfg
 core/logfile.py        Twisted daily log file + UTC formatting (monkeypatches FileLogObserver)
@@ -32,27 +34,32 @@ ssl/                   expects key.pem + cert.pem (gitignored; generation in doc
 ```
 
 Event dict schema (consumed by all plugins): `eventid` (`citrix.connection` | `citrix.payload`), `timestamp`, `unixtime`, `src_ip`,
-`src_port`, `dst_ip`, `dst_port`, `sensor`, `request`, `url`, `message`, and for payloads `body`, `payload`. Keep it backward compatible
+`src_port`, `dst_ip`, `dst_port`, `sensor`, `request`, `url`, `message`, and for payloads `body`, `payload`. Since Phase 1 also `cve`, `route_id` (additive; MySQL ignores them). Keep it backward compatible
 (MySQL schema in `docs/sql/mysql.sql`) or version it.
 
 ## Run / test
 
 ```
-pip install -r requirements.txt      # see "Known issues" - requirements are stale
+pip install -r requirements.txt pytest ruff   # MySQL plugin: pip install -r requirements-mysql.txt
+pytest -q && ruff check .
 openssl req -x509 -newkey rsa:2048 -nodes -keyout ssl/key.pem -out ssl/cert.pem -days 365 -subj /CN=localhost
 python CitrixHoneypot.py -a 127.0.0.1 -p 8443
 curl -sk 'https://127.0.0.1:8443/vpn/../vpns/cfg/smb.conf'   # note: use --path-as-is
 ```
-There is **no test suite and no CI**. Add pytest tests (use `twisted.web.test.requesthelper.DummyRequest` or `treq`) with any change to routing.
+CI: `.github/workflows/ci.yml` (ruff + pytest, py3.10/3.12). Add a pytest case with any change to routing.
+Caveat: `DummyRequest.setHeader` appends instead of replacing (real Twisted replaces), so use `responseHeaders.addRawHeader` for multi-valued headers.
+Don't `pkill -f` the honeypot from a shell that includes its name in the command line; kill by PID.
 Config precedence: env var `SECTION_OPTION` > `honeypot.cfg` > `etc/honeypot.cfg.base`.
 Run from repo root: `responses/` and `etc/` are opened via relative paths.
 
-## Code review findings (current state, as of code review)
+## Code review findings (original state; status noted per item)
 
 Stack: Python 3 (py2 compat cruft remains), Twisted `Resource` with `isLeaf=True`, single 250-line request handler.
 CVE-2019-19781 only; the Citrix fingerprint is thin and dated.
 
-Bugs:
+Bugs (**FIXED** in Phase 0/1 unless noted):
+0. (found later, worst one) `Index.render` was overridden to call `render_GET` for every method, so `render_HEAD`/`render_POST` were dead code and POST
+   exploit payloads were never logged as `citrix.payload`. FIXED: one `render()` dispatches on method via the route table.
 1. `core/protocol.py` `render_GET`: `if self.struggle_check(...): self.send_response(...)` has no `return` - falls through and sends twice/continues.
 2. `render_POST`: `parse_qs(body)['title'][0]` raises `KeyError` on any POST without `title` (500 + lost event); `int(Content-Length)` and
    `.decode('utf-8')` unguarded (non-UTF8 body crashes). Every POST with a body is logged as `citrix.payload`/"Exploit" regardless of path.
@@ -61,12 +68,15 @@ Bugs:
 4. Typo `'WARNINg'` log level (type 3 scan). Type 3 (`services.html`) serves `smb.conf` body - probably wrong.
 5. `render_HEAD` and `render_GET` duplicate ~50 lines of event building; `render()` maps *all* other methods (PUT/DELETE/custom) to GET.
 6. `get_page` uses relative `responses/` path and a class-level dict cache (`page_cache` keys hard-coded).
-7. `tools.getutctime`/`logfile.myFLOformatTime` use `datetime.utcfromtimestamp` (deprecated in 3.12, removed later) - use `datetime.fromtimestamp(t, timezone.utc)`.
-8. `tools.get_real_ip/port` trust `X-Real-IP` / `X-Real-Port` from *any* client (spoofable). Fine only if behind a trusted proxy; make opt-in.
-9. Logging `request.uri` raw: log-injection risk (newlines) in text log; sanitise/escape.
-10. `logfile.py` monkeypatches Twisted internals (`FileLogObserver.emit/formatTime`) - fragile across Twisted versions.
+7. FIXED. `tools.getutctime`/`logfile.myFLOformatTime` use `datetime.utcfromtimestamp` (deprecated in 3.12, removed later) - use `datetime.fromtimestamp(t, timezone.utc)`.
+8. (OPEN) `tools.get_real_ip/port` trust `X-Real-IP` / `X-Real-Port` from *any* client (spoofable). Fine only if behind a trusted proxy; make opt-in.
+9. FIXED. Logging `request.uri` raw: log-injection risk (newlines) in text log; sanitise/escape.
+10. (OPEN) `logfile.py` monkeypatches Twisted internals (`FileLogObserver.emit/formatTime`) - fragile across Twisted versions.
 
-Packaging / ops:
+Still open / found during Phase 1: type-1 scan (`/vpn/../vpns/`) returns HTTP 200 with a 403 *body* (no `setResponseCode`; check what the
+scanners actually key on before changing); HEAD responses report `Content-Length: 0` even where GET has a body; type-3 still serves `smb.conf`.
+
+Packaging / ops (FIXED in Phase 0 except where noted; MySQL plugin py2 shims left, excluded from ruff):
 - `requirements.txt`: `setuptools<45` pin, `configparser>=3.5` (py2 backport), unused `geoip2`/`maxminddb` (MySQL plugin only), mysqlclient mandatory
   for install though optional at runtime. No lockfile / `pyproject.toml`.
 - `Dockerfile`: unpinned `FROM python`, runs as root, no non-root port strategy, copies whole repo.
@@ -81,12 +91,12 @@ Fingerprint fidelity gaps (why modern scanners/Shodan-style checks won't treat t
 
 ## Modernization roadmap (proposed - confirm with the user before starting each phase)
 
-**Phase 0 - Hygiene (no behavior change intended, except bug fixes above)**
+**Phase 0 - Hygiene (DONE) (no behavior change intended, except bug fixes above)**
 - Add `pyproject.toml`, drop py2 shims, pin sane minimums (Twisted>=24, pyOpenSSL, cryptography); make mysqlclient/geoip optional extras.
 - Fix bugs 1-6, add pytest + ruff + GitHub Actions; pin Docker base (`python:3.12-slim`), non-root user, `CAP_NET_BIND_SERVICE` or high port.
 - Golden-file tests for the existing CVE-2019-19781 responses so refactors can't regress them.
 
-**Phase 1 - Refactor to a route table**
+**Phase 1 - Refactor to a route table (DONE except event fields `matched`/`headers`/`body_sha256`/`body_b64`)**
 - Replace the if/elif chain with a declarative registry: `Route(method, matcher, cve, handler)` in `core/routes/` (one module per CVE/product family).
 - Normalise once (percent-decode, collapse `../`, lowercase where NetScaler does) and hand handlers a parsed request object; centralise event emission.
 - Event schema v2: add `cve`, `route_id`, `matched` (bool), `headers` (allow-listed), `body_sha256`, `body_b64` (size-capped). Keep old fields.

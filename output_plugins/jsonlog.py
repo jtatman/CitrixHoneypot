@@ -1,13 +1,13 @@
 
 import os
-
-from json import dump
-from errno import EEXIST
 from copy import deepcopy
+from errno import EEXIST
+from json import dump
 
 from core import output
 from core.config import CONFIG
 from core.logfile import HoneypotDailyLogFile
+
 
 class Output(output.Output):
 

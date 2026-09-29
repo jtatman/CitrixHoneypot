@@ -1,0 +1,27 @@
+[project]
+name = "citrixhoneypot"
+version = "2.0.2"
+description = "Citrix ADC / NetScaler Gateway honeypot for local test beds"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "Twisted[tls]>=24.3",
+    "pyOpenSSL>=24.0",
+    "cryptography>=42",
+    "service_identity>=24.1",
+]
+
+[project.optional-dependencies]
+mysql = ["mysqlclient>=2.1", "geoip2>=4.7", "maxminddb>=2.5"]
+dev = ["pytest>=8", "ruff>=0.5"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+extend-exclude = ["output_plugins/mysql.py"]   # legacy, py2-era; not yet cleaned up
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]

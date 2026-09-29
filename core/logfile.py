@@ -1,6 +1,6 @@
 
+from datetime import datetime, timezone
 from sys import stdout
-from datetime import datetime
 
 from twisted.python import log, util
 from twisted.python.logfile import DailyLogFile
@@ -60,7 +60,7 @@ def myFLOformatTime(self, when):
     timeFormatString = self.timeFormat
     if timeFormatString is None:
         timeFormatString = '[%Y-%m-%d %H:%M:%S.%fZ]'
-    return datetime.utcfromtimestamp(when).strftime(timeFormatString)
+    return datetime.fromtimestamp(when, timezone.utc).strftime(timeFormatString)
 
 
 def set_logger(cfg_options):
