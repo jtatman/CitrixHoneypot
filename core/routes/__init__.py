@@ -39,14 +39,21 @@ class Ctx:
     def build(cls, method: str, uri: bytes, body: bytes, cfg: dict, profile=None, range_header: str = '',
               host_header: str = '', nitro_user: str = '', nitro_pass: str = '', rand_key: str = '') -> 'Ctx':
         path = unquote(uri.decode('utf-8', 'replace'))
-        traversal = path.find('/../') != -1
+        bare_path = path.split('?', 1)[0]   # segments must never include the query string (see bug note below)
+        traversal = bare_path.find('/../') != -1
         collapsed = tools.resolve_url(path) if traversal else path
         return cls(
             method=method,
             path=path,
             collapsed=collapsed,
-            raw_segments=[s for s in path.split('/') if s],
-            segments=[s for s in collapsed.split('/') if s],
+            # BUG (found 2026-09-30 via nmap testing, present since before this fork): splitting the raw
+            # ``path``/``collapsed`` strings on '/' without first stripping the query string turns e.g.
+            # '/?x=1' into a single fake segment ['?x=1'] instead of the empty root segment list routes like
+            # cve_2019_19781's login page expect -- so any GET to '/' (or '/vpn/') with a query string, which
+            # is completely ordinary traffic (SSO/deep-link redirects), used to 404 instead of getting the
+            # login page. Fixed by splitting on the query-stripped path instead.
+            raw_segments=[s for s in bare_path.split('/') if s],
+            segments=[s for s in collapsed.split('?', 1)[0].split('/') if s],
             traversal=traversal,
             body=body.decode('utf-8', 'replace'),
             cfg=cfg,

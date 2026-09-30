@@ -124,6 +124,25 @@ feature adds realism and a rich block-event signal (8,003 of them, correctly cla
 Not yet tested against vigolium's native dynamic-assessment phase specifically (where the detector actually is wired in), or against
 any other scanner that does implement WAF-aware back-off -- the trade-off may still be real elsewhere, just not observed here.
 
+**nmap, 2026-09-30**: installed `nmap` and ran its dedicated `http-waf-detect`/`http-waf-fingerprint` NSE scripts (plus checked the
+`vuln` category, which contains no Citrix-specific scripts -- it's product-specific tests for Struts/WordPress/etc, not useful here)
+against both `adc-14.1-73.33-waf` and the non-WAF `adc-14.1-73.33-vulnerable` baseline. Two separate, genuinely useful signals:
+- `http-waf-fingerprint` (keys purely on the `Cneonction`/`nnCoection` header or `NSC_*` cookies -- see its source,
+  `/usr/share/nmap/scripts/http-waf-fingerprint.nse` lines ~328-358) identified **"Citrix Netscaler" by name** on *both* profiles --
+  this is validating Phase 3's older fingerprint work (`netscaler-surface`), not the new WAF-mimicry layer, since both profiles carry
+  that header/cookie set regardless of `waf-mimicry`. Still a genuinely good result: a third independent tool's built-in vendor
+  fingerprint database recognises the emulation by name.
+- `http-waf-detect` (sends baseline + attack-looking requests to the same path, diffs the response status) correctly differentiated
+  the two profiles *after* the bug below was fixed: "IDS/IPS/WAF detected" on `adc-14.1-73.33-waf`, clean/undetected on the baseline.
+
+**Bug found via this testing, fixed same day**: `http-waf-detect` initially reported a false positive identically on *both* profiles
+(including the one without `waf-mimicry`), which led to finding that `Ctx.raw_segments`/`Ctx.segments` split the raw path on `/`
+*without first stripping the query string* -- so `GET /?x=1` produced a fake segment `['?x=1']` instead of the empty root segment
+list `cve_2019_19781.py`'s login route matches on, 404ing instead of serving the login page. This is completely ordinary traffic
+(SSO/deep-link redirects always carry query params) and the bug predates this fork entirely (same flaw in the original honeypot's
+`url_path` computation). Fixed in `core/routes/__init__.py`'s `Ctx.build` by stripping the query string before splitting; regression
+test in `tests/test_cve_2019_19781.py`.
+
 ## GitHub survey, 2026-09-29 (two background research passes, ~59 repos catalogued across 2010-2026)
 
 Historical (pre-2022) and modern (2022-2026) passes via `firecrawl_search`/`firecrawl_scrape` (no GitHub API, per this session's repo-scope

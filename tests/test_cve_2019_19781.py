@@ -15,6 +15,17 @@ def test_login_page(index, send, capture):
     assert capture.events == []
 
 
+def test_login_page_with_query_string(index, send, capture):
+    # Regression: root_segments/segments used to be computed by splitting the raw path on '/' without first
+    # stripping the query string, so '/?x=1' produced a fake segment ['?x=1'] instead of the empty root
+    # segment list this route matches on -- any GET with a query string (SSO/deep-link redirects, completely
+    # ordinary traffic) 404'd instead of getting the login page. Found 2026-09-30 via nmap testing.
+    for uri in ('/?redirect=%2Fportal', '/vpn/?sid=abc', '/vpn/index.html?lang=en'):
+        body, _ = send(index, 'GET', uri)
+        assert body == page('login.html').encode()
+    assert capture.events == []
+
+
 def test_unknown_path_is_empty(index, send, capture):
     body, _ = send(index, 'GET', '/nothing/here')
     assert body == b''

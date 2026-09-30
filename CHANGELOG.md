@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Control characters in logged request paths are escaped
 * Replaced deprecated `datetime.utcfromtimestamp`
 * `dispatch()`'s default "patched" fallback no longer leaks a route's `data`/`cookies`/`headers` into the not-found response it's supposed to replace
+* `GET /` (and `/vpn/`, etc.) with a query string no longer 404s -- `Ctx` used to split the raw path into segments without stripping the query string first, breaking on any request with query params (found via nmap's `http-waf-detect`)
 
 ### Added
 

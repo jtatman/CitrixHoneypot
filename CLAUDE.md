@@ -77,6 +77,10 @@ Bugs (**FIXED** in Phase 0/1 unless noted):
 8. (OPEN) `tools.get_real_ip/port` trust `X-Real-IP` / `X-Real-Port` from *any* client (spoofable). Fine only if behind a trusted proxy; make opt-in.
 9. FIXED. Logging `request.uri` raw: log-injection risk (newlines) in text log; sanitise/escape.
 10. (OPEN) `logfile.py` monkeypatches Twisted internals (`FileLogObserver.emit/formatTime`) - fragile across Twisted versions.
+11. FIXED 2026-09-30 (found via nmap's `http-waf-detect` NSE script). `Ctx.raw_segments`/`Ctx.segments` split the raw path on `/`
+    without first stripping the query string, so `GET /?x=1` produced `['?x=1']` instead of the empty root segment list the login
+    route matches on -- 404 instead of the login page, on completely ordinary traffic (any GET with query params). Predates this
+    fork (same flaw in the original `url_path` computation). See `core/routes/__init__.py`'s `Ctx.build`.
 
 Still open / found during Phase 1: type-1 scan (`/vpn/../vpns/`) returns HTTP 200 with a 403 *body* (no `setResponseCode`; check what the
 scanners actually key on before changing); HEAD responses report `Content-Length: 0` even where GET has a body; type-3 still serves `smb.conf`.
@@ -208,7 +212,12 @@ effect observed: realism + a rich, correctly-classified block-event signal, at n
 tested against vigolium's native scan phases (where the detector is actually reachable) or any scanner that does implement WAF-aware
 back-off -- see docs/SCANNER_SURFACE.md for the full writeup. Off by default on every other profile; select `adc-14.1-73.33-waf`
 explicitly. The signature list (sqli/xss/cmdi/traversal) is a small illustrative subset in the spirit of OWASP CRS's classic rules,
-not an exhaustive WAF ruleset.
+not an exhaustive WAF ruleset. **nmap, 2026-09-30**: `http-waf-detect` (a behavior-diffing NSE script, unrelated to vigolium's
+requester-level detector) correctly reports "IDS/IPS/WAF detected" on `adc-14.1-73.33-waf` and stays clean on the non-WAF baseline --
+this is the meaningful A/B validation the earlier tools couldn't give (katana never attacks, vigolium's known-issue-scan is
+architecturally blind to it). `http-waf-fingerprint` separately identifies "Citrix Netscaler" by name on *both* profiles, since it
+keys on the header/cookie fingerprint from Phase 3's older `netscaler-surface` work, not the new block layer. Also see bug 11 above,
+found via this testing.
 
 **Phase 4 - Outputs and local-lab ergonomics**
 - Implement sqlite (schema file is missing: `docs/sql/sqlite3.sql`), plain JSONL to stdout, optional Elasticsearch/syslog. Remove GeoIP by default.
