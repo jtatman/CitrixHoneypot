@@ -30,7 +30,7 @@ core/tools.py          helpers: url normalisation, IP helpers, event writing, pl
 core/config.py         ConfigParser + env-var override (SECTION_OPTION), reads etc/honeypot.cfg.base, etc/honeypot.cfg, ./honeypot.cfg
 core/logfile.py        Twisted daily log file + UTC formatting (monkeypatches FileLogObserver)
 core/output.py         Output plugin base class
-output_plugins/        jsonlog.py (works), mysql.py (works, needs mysqlclient), sqlite.py (EMPTY stub)
+output_plugins/        jsonlog.py, mysql.py (needs mysqlclient), sqlite.py (stdlib sqlite3, schema auto-applied, docs/sql/sqlite3.sql)
 responses/             static bodies: login.html, 403.html, smb.conf, gold_star.html
 etc/                   honeypot.cfg.base (defaults, do not edit), honeypot-launch.cfg.base
 bin/honeypot           start/stop wrapper (venv + authbind)
@@ -89,7 +89,7 @@ Packaging / ops (FIXED in Phase 0 except where noted; MySQL plugin py2 shims lef
 - `requirements.txt`: `setuptools<45` pin, `configparser>=3.5` (py2 backport), unused `geoip2`/`maxminddb` (MySQL plugin only), mysqlclient mandatory
   for install though optional at runtime. No lockfile / `pyproject.toml`.
 - `Dockerfile`: unpinned `FROM python`, runs as root, no non-root port strategy, copies whole repo.
-- `output_plugins/sqlite.py` is an empty stub; `etc/honeypot.cfg.base` and `docs/TODO.md` list elasticsearch/textlog/hpfeeds as unimplemented.
+- `etc/honeypot.cfg.base` and `docs/TODO.md` list elasticsearch/textlog/hpfeeds as unimplemented (sqlite is now implemented, see Phase 4).
 - Python 2 shims (`try: urllib.parse except ImportError`, `from __future__`) can go.
 - Licence is the joke "MalwareTech Public Licence"; keep the header intact.
 
@@ -227,8 +227,20 @@ architecturally blind to it). `http-waf-fingerprint` separately identifies "Citr
 keys on the header/cookie fingerprint from Phase 3's older `netscaler-surface` work, not the new block layer. Also see bug 11 above,
 found via this testing.
 
-**Phase 4 - Outputs and local-lab ergonomics**
-- Implement sqlite (schema file is missing: `docs/sql/sqlite3.sql`), plain JSONL to stdout, optional Elasticsearch/syslog. Remove GeoIP by default.
+**Phase 4 - Outputs and local-lab ergonomics (STARTED)**
+- DONE: sqlite output (`output_plugins/sqlite.py`, `docs/sql/sqlite3.sql`) -- denormalised one-row-per-event
+  table (unlike mysql.sql's lookup-table design; this is a local-lab store, simple querying matters more
+  than dedup), schema auto-applied via `executescript()` on first run against a fresh `db_file`. Only the
+  event-schema fields common to every route are broken into columns; route-specific extras
+  (`waf_signature`, `ioc_source`, `nitro_user`, `leaked_fake`, ...) are kept losslessly in an `extra` JSON
+  column rather than growing the schema per CVE. Synchronous stdlib `sqlite3` (not `twisted.enterprise.
+  adbapi`, unlike mysql.py) -- adbapi's threaded interactions raced against tests reading the db
+  immediately after `write()`; plain blocking calls are simple, testable, and fine at honeypot traffic
+  volumes for a single local file. Live-verified: ran the honeypot against `output_sqlite`, hit it with
+  curl, confirmed the row landed with correct `route_id`/`cve`/`extra`.
+- DONE: `output_jsonlog`'s `logfile` option accepts `-`/`stdout` to write JSONL straight to stdout instead
+  of a rotated file (`docker logs`/systemd-journal-style local-lab use, no bind-mounted log dir needed).
+- Optional Elasticsearch/syslog. Remove GeoIP by default.
 - Optional plain-HTTP listener, multiple ports (443, 8443, 3010 mgmt), `--profile` and `--tls-profile` CLI flags, health endpoint on localhost only.
 - docker-compose with a network-isolated lab (`internal: true` network) to guarantee no egress.
 

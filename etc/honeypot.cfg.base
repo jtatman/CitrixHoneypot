@@ -89,6 +89,9 @@ log_path = log
 
 # JSON based logging module
 #
+# logfile can be '-' or 'stdout' to write JSONL to stdout instead of a rotated file (e.g. for
+# `docker logs`/systemd-journal-style local-lab setups).
+#
 #[output_jsonlog]
 #enabled = true
 #logfile = log/honeypot.json
@@ -139,13 +142,15 @@ log_path = log
 
 # SQLite3 logging module
 #
-# Logging to SQLite3 database. To init the database, use the script
-# docs/sql/sqlite3.sql:
-#     sqlite3 <db_file> < docs/sql/sqlite3.sql
+# Logging to a local SQLite3 database (docs/sql/sqlite3.sql); the schema is applied automatically on
+# first run against a fresh db_file, no manual init needed. One denormalised `events` row per event;
+# route-specific fields not common to every route (waf_signature, ioc_source, nitro_user, ...) are kept
+# losslessly in an `extra` JSON column.
 #
 #[output_sqlite]
 #enabled = false
 #db_file = honeypot.db
+#debug = false
 
 # HPFeeds
 #

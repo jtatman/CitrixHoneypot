@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Replaced deprecated `datetime.utcfromtimestamp`
 * `dispatch()`'s default "patched" fallback no longer leaks a route's `data`/`cookies`/`headers` into the not-found response it's supposed to replace
 * `GET /` (and `/vpn/`, etc.) with a query string no longer 404s -- `Ctx` used to split the raw path into segments without stripping the query string first, breaking on any request with query params (found via nmap's `http-waf-detect`)
+* `output_plugins/sqlite.py` was an empty stub; now a working output plugin
 
 ### Added
 
@@ -38,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   generic SQLi/XSS/command-injection/traversal signatures get a plausible 403 + `NS Transaction ID` block instead of silent 200/404,
   without shadowing any specific CVE/IOC route. Live-tested against katana (unaffected) and vigolium's known-issue-scan (the predicted
   scanner back-off did not occur; see docs/SCANNER_SURFACE.md)
+* SQLite output plugin (`output_plugins/sqlite.py`, `[output_sqlite]`): schema (`docs/sql/sqlite3.sql`) auto-applied on first run;
+  one row per event with the common fields as columns and route-specific extras (`waf_signature`, `ioc_source`, `nitro_user`, ...)
+  losslessly in a JSON `extra` column
+* `output_jsonlog`'s `logfile` option accepts `-`/`stdout` to write JSONL to stdout instead of a rotated file
 
 ### Changed
 

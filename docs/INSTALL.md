@@ -280,6 +280,7 @@ Supported output plugins include:
 
 - JSON
 - MySQL
+- SQLite (`[output_sqlite]` in `honeypot.cfg`; schema in `docs/sql/sqlite3.sql`, applied automatically)
 
 More plugins are likely to be added in the future.
 
