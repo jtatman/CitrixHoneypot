@@ -148,9 +148,13 @@ test in `tests/test_cve_2019_19781.py`.
 Historical (pre-2022) and modern (2022-2026) passes via `firecrawl_search`/`firecrawl_scrape` (no GitHub API, per this session's repo-scope
 rule). Full per-repo notes were written to scratch files, not checked into the repo; verified, actionable findings are folded into CLAUDE.md
 and the routes above. Highlights not already covered elsewhere:
-- **fox-it/citrix-netscaler-triage** and **securekomodo/citrixInspector**: independent, actively-maintained gzip-MTIME/build tables (the
-  same Fox-IT technique citrixscan's `RDX_EN_STAMP_TO_VERSION` uses), both more current than citrixscan's table (which stops at
-  14.1-66.59). Not yet fetched/merged -- would let modern profiles finally set `rdx_en_mtime` for 14.1-73.x builds.
+- **fox-it/citrix-netscaler-triage** and **securekomodo/citrixInspector**: independent gzip-MTIME/build tables (the same Fox-IT
+  technique citrixscan's `RDX_EN_STAMP_TO_VERSION` uses). **Correction, checked 2026-09-30**: the survey reported these as "more
+  current" than our vendored table -- that was wrong, passed through unverified. Fetched fox-it's actual table directly: it tops
+  out 2025-11-11 (12.1-55.333); our own `core/data/rdx_en_stamps.json` (from citrixscan) already reaches 2026-03-17 (14.1-66.59), so
+  it's the more current of the two. No merge was worth doing. Neither has a 14.1-73.x row regardless (CTX697096 was disclosed only
+  3 days before this check; no public timestamp extraction can exist yet for a build that new) -- genuinely blocked on the data not
+  existing publicly, not a "not yet done" backlog item.
 - **watchtowrlabs/watchTowr-vs-Citrix-Netscaler-CVE-2026-88771** and **-PreAuth-RCE-CVE-2026-8452**: verified directly (see CVE-2026-88771
   and CVE-2026-8452 entries in CLAUDE.md) -- the richest concrete finds of the whole survey, both from research published in the last ~6
   weeks.

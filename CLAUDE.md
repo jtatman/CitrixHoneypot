@@ -177,9 +177,17 @@ bulletins/public scanner templates such as nuclei/watchTowr before implementing)
 - **GitHub survey, 2026-09-29**: two background research passes catalogued ~59 repos across the full 2010-2026 CVE range (not just the
   handful already cited) -- PoCs, scanners, IOC lists, nuclei templates, and a dedicated "any other Citrix honeypot?" sweep (none found;
   this fork's lineage appears to be the only one). Full catalogs are not checked into the repo (they were scratch research files); the
-  actionable, verified findings are folded into the entries above and into `docs/SCANNER_SURFACE.md`. Notable non-actionable finding:
-  fox-it/citrix-netscaler-triage and securekomodo/citrixInspector both maintain independent, more-current gzip-MTIME build tables than
-  citrixscan's (which stops at 14.1-66.59) -- worth fetching to fill the `rdx_en_mtime` gap for 14.1-73.x builds, not yet done.
+  actionable, verified findings are folded into the entries above and into `docs/SCANNER_SURFACE.md`.
+- **rdx_en_mtime for 14.1-73.x, checked 2026-09-30, correction of an earlier unverified claim**: the survey had reported fox-it/
+  citrix-netscaler-triage and securekomodo/citrixInspector as having "more-current" gzip-MTIME tables than citrixscan's, worth
+  fetching to fill the 14.1-73.x gap -- that claim was passed through from the subagent's report without independently checking it,
+  and turned out to be wrong. Fetched fox-it's actual table (`scan-citrix-netscaler-version.py`, verified directly): it tops out at
+  stamp 1762830097 (2025-11-11, version 12.1-55.333); our own vendored `core/data/rdx_en_stamps.json` (from citrixscan) already
+  reaches stamp 1773758251 (2026-03-17, version 14.1-66.59) -- i.e. our existing table is *more* current than the one the survey
+  said we should fetch. No merge was worth doing. Neither table has 14.1-73.x regardless, because that build was disclosed only
+  3 days before this check (CTX697096, 2026-09-27) and no public gzip-timestamp extraction can exist yet for it -- someone has to
+  first get a copy of that exact firmware and run the extraction script against it. Not a "not yet done" item; genuinely blocked on
+  the data not existing publicly yet. Revisit once a public table adds a 14.1-73.x row.
 - CVE-2025-5777 "CitrixBleed 2" (DONE) (`POST /p/u/doAuthentication.do` with valueless `login`), CVE-2025-6543, CVE-2025-7775
 - Other products if useful: StoreFront, Citrix Virtual Apps/ADM/SD-WAN and NetScaler Console management UIs (separate profiles, separate ports).
 For each: log a `scan` vs `exploit_attempt` classification, respond with a canned vulnerable-looking body, and never process attacker payloads.
