@@ -43,6 +43,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   one row per event with the common fields as columns and route-specific extras (`waf_signature`, `ioc_source`, `nitro_user`, ...)
   losslessly in a JSON `extra` column
 * `output_jsonlog`'s `logfile` option accepts `-`/`stdout` to write JSONL to stdout instead of a rotated file
+* Elasticsearch/OpenSearch output plugin (`output_plugins/elasticsearch.py`, `[output_elasticsearch]`): stdlib `urllib`,
+  no extra dependency; POSTs each event as a document to `{scheme}://{host}:{port}/{index}/_doc`
+* Syslog output plugin (`output_plugins/syslog.py`, `[output_syslog]`): stdlib `socket`; sends each event to a remote
+  syslog server, RFC 3164-framed, body as CEF (default) or JSON, over UDP or TCP
 
 ### Changed
 

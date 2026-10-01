@@ -117,17 +117,38 @@ log_path = log
 #geoip_citydb = data/GeoLite2-City.mmdb
 #geoip_asndb = data/GeoLite2-ASN.mmdb
 
-# TODO:
-
-# Supports logging to Elasticsearch
+# Elasticsearch / OpenSearch logging module
+#
+# POSTs each event as a document to {scheme}://{host}:{port}/{index}/_doc (ES7+/OpenSearch style, no
+# mapping type). Stdlib-only (urllib), no extra package required.
 #
 #[output_elasticsearch]
 #enabled = false
+#scheme = http
 #host = localhost
 #port = 9200
 #index = honeypot
-#type = honeypot
-#pipeline = geoip
+#username =
+#password =
+#timeout = 5
+#verify_tls = true
+#debug = false
+
+# Syslog logging module
+#
+# Sends each event to a remote syslog server, RFC 3164-framed, body as CEF (default, SIEM-friendly) or
+# raw JSON. protocol can be udp (default, fire-and-forget) or tcp. Stdlib-only (socket).
+#
+#[output_syslog]
+#enabled = false
+#host = localhost
+#port = 514
+#protocol = udp
+#format = cef
+#facility = local0
+#tag = CitrixHoneypot
+#timeout = 5
+#debug = false
 
 # Text output
 # This writes audit log entries to a text file

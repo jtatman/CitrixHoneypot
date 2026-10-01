@@ -30,7 +30,8 @@ core/tools.py          helpers: url normalisation, IP helpers, event writing, pl
 core/config.py         ConfigParser + env-var override (SECTION_OPTION), reads etc/honeypot.cfg.base, etc/honeypot.cfg, ./honeypot.cfg
 core/logfile.py        Twisted daily log file + UTC formatting (monkeypatches FileLogObserver)
 core/output.py         Output plugin base class
-output_plugins/        jsonlog.py, mysql.py (needs mysqlclient), sqlite.py (stdlib sqlite3, schema auto-applied, docs/sql/sqlite3.sql)
+output_plugins/        jsonlog.py, mysql.py (needs mysqlclient), sqlite.py (stdlib sqlite3, schema auto-applied, docs/sql/sqlite3.sql),
+                        elasticsearch.py (stdlib urllib, HTTP _doc POST), syslog.py (stdlib socket, RFC3164/CEF or JSON)
 responses/             static bodies: login.html, 403.html, smb.conf, gold_star.html
 etc/                   honeypot.cfg.base (defaults, do not edit), honeypot-launch.cfg.base
 bin/honeypot           start/stop wrapper (venv + authbind)
@@ -240,7 +241,15 @@ found via this testing.
   curl, confirmed the row landed with correct `route_id`/`cve`/`extra`.
 - DONE: `output_jsonlog`'s `logfile` option accepts `-`/`stdout` to write JSONL straight to stdout instead
   of a rotated file (`docker logs`/systemd-journal-style local-lab use, no bind-mounted log dir needed).
-- Optional Elasticsearch/syslog. Remove GeoIP by default.
+- DONE: `output_plugins/elasticsearch.py` (stdlib `urllib`, no extra dependency) POSTs each event as a
+  document to `{scheme}://{host}:{port}/{index}/_doc`; `output_plugins/syslog.py` (stdlib `socket`) sends
+  each event to a remote syslog server, RFC 3164-framed, body as CEF (default) or raw JSON, over UDP
+  (fire-and-forget) or TCP (lazy-connect, reconnects on send failure). Both synchronous/blocking like
+  `sqlite.py` -- same trade-off rationale: simple, testable, fine at honeypot traffic volumes, not meant
+  to be a production SIEM forwarder. Live-verified against a real UDP syslog listener and a mock ES HTTP
+  endpoint (ran the honeypot, hit a route, confirmed both received the event with correct fields/CEF
+  formatting).
+- Remove GeoIP by default.
 - Optional plain-HTTP listener, multiple ports (443, 8443, 3010 mgmt), `--profile` and `--tls-profile` CLI flags, health endpoint on localhost only.
 - docker-compose with a network-isolated lab (`internal: true` network) to guarantee no egress.
 
