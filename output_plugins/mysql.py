@@ -12,7 +12,6 @@ from core.config import CONFIG
 
 from sys import exc_info
 from hashlib import sha256
-from geoip2.database import Reader
 
 from twisted.python import log
 from twisted.python.compat import reraise
@@ -71,9 +70,14 @@ class Output(output.Output):
         self.geoipdb_asn_path = CONFIG.get('output_mysql', 'geoip_asndb', fallback='')
 
         self.debug = CONFIG.getboolean('output_mysql', 'debug', fallback=False)
-        self.geoip = CONFIG.getboolean('output_mysql', 'geoip', fallback=True)
+        # Off by default: geolocation needs the MaxMind GeoLite2 databases (an account + download, see
+        # docs/INSTALL.md) and the geoip2/maxminddb packages (requirements-geoip.txt), neither of which
+        # the honeypot needs otherwise -- this fork binds to a local interface only (see CLAUDE.md).
+        self.geoip = CONFIG.getboolean('output_mysql', 'geoip', fallback=False)
 
         self.dbh = None
+        self.reader_city = None
+        self.reader_asn = None
 
         output.Output.__init__(self, general_options)
 
@@ -100,13 +104,21 @@ class Output(output.Output):
 
         if self.geoip:
             try:
+                from geoip2.database import Reader
+            except ImportError:
+                self.local_log('GeoIP enabled but geoip2 is not installed; '
+                                'pip install -r requirements-geoip.txt. Disabling GeoIP for this run.')
+                self.geoip = False
+                return
+
+            try:
                 self.reader_city = Reader(self.geoipdb_city_path)
-            except:
+            except Exception:
                 self.local_log('Failed to open City GeoIP database {}'.format(self.geoipdb_city_path))
 
             try:
                 self.reader_asn = Reader(self.geoipdb_asn_path)
-            except:
+            except Exception:
                 self.local_log('Failed to open ASN GeoIP database {}'.format(self.geoipdb_asn_path))
 
     def stop(self):

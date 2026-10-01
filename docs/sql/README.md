@@ -14,15 +14,24 @@
 
 ## Installation
 
-When writing to a MySQL database, the honeypot uses the free databases
-provided by MaxMind for the purposes of geoloacting the IP addresses.
-Start by installing the library necessary to work with these databases
-from an account that can sudo (i.e., not from the user `citrix`):
+```bash
+sudo apt-get install libmysqlclient-dev
+pip install -r requirements-mysql.txt
+```
+
+Geolocating IP addresses (via the free databases MaxMind provides) is **optional and off by default**
+(`geoip = false` in `honeypot.cfg`'s `[output_mysql]` section) -- the honeypot doesn't need it, and this
+fork avoids outbound calls by default (see CLAUDE.md's ground rules). Skip the rest of this section
+unless you specifically want geolocation data in the database.
+
+To enable it, first install the extra Python packages and the library necessary to work with the
+MaxMind databases, from an account that can sudo (i.e., not from the user `citrix`):
 
 ```bash
+pip install -r requirements-geoip.txt
 sudo add-apt-repository ppa:maxmind/ppa
 sudo apt-get update
-sudo apt-get install python-mysqldb libmysqlclient-dev geoipupdate
+sudo apt-get install geoipupdate
 ```
 
 Now switch to the `citrix` user:
@@ -141,17 +150,21 @@ database = citrixhoney
 username = citrix
 password = PASSWORD HERE
 port = 3306
-# Whether to store geolocation data in the database
+```
+
+Make sure you use the password you specified for the MySQL user `citrix`
+instead of 'PASSWORD HERE'. If you followed the optional geolocation steps above, also add:
+
+```honeypot.cfg
+# Whether to store geolocation data in the database (default: false)
 geoip = true
 # Location of the databases used for geolocation
 geoip_citydb = data/GeoLite2-City.mmdb
 geoip_asndb = data/GeoLite2-ASN.mmdb
 ```
 
-Make sure you use the password you specified for the MySQL user `citrix`
-instead of 'PASSWORD HERE'. Make sure the options `geoip_citydb` and
-`geoip_asndb` point to the correct paths of the two MaxMind geolocation
-databases.
+making sure the options `geoip_citydb` and `geoip_asndb` point to the correct paths of the two
+MaxMind geolocation databases.
 
 Since the file `honeypot.cfg` contains in cleartext the password for
 the database, it would be a good idea to change its permissions so that only

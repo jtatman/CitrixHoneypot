@@ -69,6 +69,13 @@ log_path = log
 # (default: 443)
 #listen_port = 443
 
+# Also listen on this plain-HTTP port (same routes/site, no TLS). Local-lab convenience only -- e.g. for
+# tools that don't handle a self-signed cert well -- a real NetScaler ADC/Gateway does not serve this
+# surface over plain HTTP, so leave this off unless you specifically need it.
+#
+# (0 = disabled; default: 0)
+#http_port = 0
+
 # TODO:
 # Enable to log the public IP of the honeypot (useful if listening on 127.0.0.1)
 # IP address is obtained by querying http://myip.threatstream.com
@@ -111,9 +118,11 @@ log_path = log
 #password = secret
 #port = 3306
 #debug = false
-# Whether to store geolocation data in the database
-#geoip = true
-# Location of the databases used for geolocation
+# Whether to store geolocation data in the database. Off by default: needs the MaxMind GeoLite2
+# databases (account + download, see docs/INSTALL.md) and the geoip2/maxminddb packages
+# (pip install -r requirements-geoip.txt), neither of which the honeypot needs otherwise.
+#geoip = false
+# Location of the databases used for geolocation (only read if geoip = true)
 #geoip_citydb = data/GeoLite2-City.mmdb
 #geoip_asndb = data/GeoLite2-ASN.mmdb
 

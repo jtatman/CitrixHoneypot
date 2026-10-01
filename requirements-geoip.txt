@@ -1,0 +1,3 @@
+# Only needed if [output_mysql] geoip = true (off by default, see etc/honeypot.cfg.base).
+geoip2>=4.7
+maxminddb>=2.5

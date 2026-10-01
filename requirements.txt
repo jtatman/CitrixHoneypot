@@ -1,5 +1,6 @@
 # Core runtime dependencies. Optional extras:
 #   MySQL output plugin:  pip install -r requirements-mysql.txt  (needs libmysqlclient-dev)
+#   GeoIP (MySQL plugin, off by default): pip install -r requirements-geoip.txt
 Twisted[tls]>=24.3
 pyOpenSSL>=24.0
 cryptography>=42

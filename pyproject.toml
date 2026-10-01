@@ -13,7 +13,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-mysql = ["mysqlclient>=2.1", "geoip2>=4.7", "maxminddb>=2.5"]
+mysql = ["mysqlclient>=2.1"]
+geoip = ["geoip2>=4.7", "maxminddb>=2.5"]   # only needed if [output_mysql] geoip = true (off by default)
 dev = ["pytest>=8", "ruff>=0.5"]
 
 [tool.pytest.ini_options]

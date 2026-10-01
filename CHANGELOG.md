@@ -47,9 +47,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   no extra dependency; POSTs each event as a document to `{scheme}://{host}:{port}/{index}/_doc`
 * Syslog output plugin (`output_plugins/syslog.py`, `[output_syslog]`): stdlib `socket`; sends each event to a remote
   syslog server, RFC 3164-framed, body as CEF (default) or JSON, over UDP or TCP
+* Optional plain-HTTP listener: `[honeypot] http_port` / `--http-port` (0 = disabled) binds a second, TLS-less
+  listener on the same site/routes, for local-lab convenience (tools that don't handle a self-signed cert well)
 
 ### Changed
 
+* `output_plugins/mysql.py`'s `geoip` option now defaults to `false` (was `true`); `geoip2` is imported lazily, only
+  when geoip is enabled, so the plugin no longer requires `geoip2`/`maxminddb` unless geolocation is opted into.
+  Those two packages moved from `requirements-mysql.txt` to a new `requirements-geoip.txt`
 * Request handling refactored into a route table (`core/routes/`); events gain `cve` and `route_id` fields
 * Python 3.10+ required; dependencies modernised, MySQL/GeoIP moved to `requirements-mysql.txt`
 * Docker image: pinned `python:3.12-slim`, non-root, listens on 8443

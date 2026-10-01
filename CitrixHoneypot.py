@@ -44,6 +44,11 @@ def get_options(cfg_options):
     parser.add_argument('-P', '--profile', type=str, default=cfg_options['profile_name'],
                         help='Appliance profile from profiles/ (default: {})'.format(cfg_options['profile_name']))
 
+    parser.add_argument('--http-port', type=int, default=cfg_options['http_port'],
+                        help='Also listen on this plain-HTTP port, same routes/site, no TLS (0 = disabled, '
+                             'local-lab convenience only -- a real appliance does not serve this over HTTP; '
+                             'default: {})'.format(cfg_options['http_port']))
+
     args = parser.parse_args()
     return args
 
@@ -72,6 +77,7 @@ def main():
     cfg_options['debug'] = CONFIG.get('honeypot', 'verbosity', fallback='info')
     cfg_options['struggle'] = CONFIG.getboolean('honeypot', 'struggle_check', fallback=False)
     cfg_options['profile_name'] = CONFIG.get('honeypot', 'profile', fallback=DEFAULT_PROFILE)
+    cfg_options['http_port'] = CONFIG.getint('honeypot', 'http_port', fallback=0)
 
     args = get_options(cfg_options)
 
@@ -79,6 +85,7 @@ def main():
     cfg_options['port'] = args.port
     cfg_options['logfile'] = args.logfile
     cfg_options['ssldir'] = args.ssldir
+    cfg_options['http_port'] = args.http_port
     try:
         cfg_options['profile'] = load_profile(args.profile)
     except ProfileError as e:
@@ -105,6 +112,14 @@ def main():
     )
     log.msg('Listening on {}:{}.'.format(cfg_options['addr'], cfg_options['port']))
     endpoints.serverFromString(reactor, endpoint_spec).listen(site)
+
+    if cfg_options['http_port']:
+        # Local-lab convenience only (e.g. for tools that don't handle a self-signed cert well); a real
+        # NetScaler ADC/Gateway does not serve this surface over plain HTTP. Same Site/routes, no TLS.
+        http_endpoint_spec = 'tcp:interface={}:port={}'.format(cfg_options['addr'], cfg_options['http_port'])
+        log.msg('Also listening on plain HTTP {}:{}.'.format(cfg_options['addr'], cfg_options['http_port']))
+        endpoints.serverFromString(reactor, http_endpoint_spec).listen(site)
+
     reactor.run()   # pylint: disable=no-member
     log.msg('Shutdown requested, exiting...')
     stop_plugins(cfg_options)

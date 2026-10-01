@@ -88,7 +88,8 @@ scanners actually key on before changing); HEAD responses report `Content-Length
 
 Packaging / ops (FIXED in Phase 0 except where noted; MySQL plugin py2 shims left, excluded from ruff):
 - `requirements.txt`: `setuptools<45` pin, `configparser>=3.5` (py2 backport), unused `geoip2`/`maxminddb` (MySQL plugin only), mysqlclient mandatory
-  for install though optional at runtime. No lockfile / `pyproject.toml`.
+  for install though optional at runtime. No lockfile / `pyproject.toml`. (Phase 4: geoip2/maxminddb split into their own
+  `requirements-geoip.txt`/`geoip` extra and lazily imported, off by default -- see Phase 4 below.)
 - `Dockerfile`: unpinned `FROM python`, runs as root, no non-root port strategy, copies whole repo.
 - `etc/honeypot.cfg.base` and `docs/TODO.md` list elasticsearch/textlog/hpfeeds as unimplemented (sqlite is now implemented, see Phase 4).
 - Python 2 shims (`try: urllib.parse except ImportError`, `from __future__`) can go.
@@ -249,8 +250,18 @@ found via this testing.
   to be a production SIEM forwarder. Live-verified against a real UDP syslog listener and a mock ES HTTP
   endpoint (ran the honeypot, hit a route, confirmed both received the event with correct fields/CEF
   formatting).
-- Remove GeoIP by default.
-- Optional plain-HTTP listener, multiple ports (443, 8443, 3010 mgmt), `--profile` and `--tls-profile` CLI flags, health endpoint on localhost only.
+- DONE: `output_plugins/mysql.py`'s `geoip` option now defaults to `false` (was `true`), and `geoip2`'s
+  import moved from module level into `start()` (lazy, only when `geoip = true`) so the plugin no longer
+  requires `geoip2`/`maxminddb` to be installed at all unless geolocation is explicitly opted into.
+  `requirements-mysql.txt` now only pulls `mysqlclient`; the geoip2/maxminddb pair moved to a new
+  `requirements-geoip.txt` (also split in `pyproject.toml`'s `mysql`/`geoip` extras). `docs/sql/README.md`
+  reordered so the MaxMind account/download steps are clearly optional, not part of base MySQL setup.
+- DONE: optional plain-HTTP listener -- `[honeypot] http_port` / `--http-port` (0 = disabled, default)
+  binds a second, TLS-less `tcp:` endpoint on the same `Site`/routes alongside the main TLS listener.
+  Local-lab convenience only (tools that don't handle a self-signed cert well); documented as such since a
+  real NetScaler ADC/Gateway doesn't serve this surface over plain HTTP. Live-verified: ran the honeypot
+  with `--http-port 8080` alongside the TLS listener on a different port, confirmed both answered.
+- Multiple ports (443, 8443, 3010 mgmt), `--tls-profile` CLI flag, health endpoint on localhost only.
 - docker-compose with a network-isolated lab (`internal: true` network) to guarantee no egress.
 
 ## Conventions
