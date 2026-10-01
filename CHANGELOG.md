@@ -49,6 +49,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   syslog server, RFC 3164-framed, body as CEF (default) or JSON, over UDP or TCP
 * Optional plain-HTTP listener: `[honeypot] http_port` / `--http-port` (0 = disabled) binds a second, TLS-less
   listener on the same site/routes, for local-lab convenience (tools that don't handle a self-signed cert well)
+* Multiple TLS ports: `[honeypot] extra_listen_ports` / `--ports` binds the same site/cert/profile to additional
+  ports alongside `-p`/`port` (e.g. "8443,3010")
+* `--tls-profile` / `[honeypot] tls_profile`: take the TLS cert subject CN from a different appliance profile
+  than `--profile`, for testing cert-based fingerprinting independently of the HTTP surface
 
 ### Changed
 

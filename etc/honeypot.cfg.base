@@ -49,6 +49,12 @@ log_path = log
 # (default: adc-12.1-vulnerable)
 #profile = adc-12.1-vulnerable
 
+# Appliance profile (profiles/<name>.yaml) to take the TLS certificate subject CN from, decoupled from
+# `profile` above -- e.g. to test cert-based fingerprinting tools separately from the HTTP surface.
+#
+# (default: not set, i.e. same as `profile`)
+#tls_profile = adc-12.1-vulnerable
+
 # Set to True to detect failed directory traversal attempts and
 # reward our friendly failed hacker with a gold star!
 #
@@ -68,6 +74,14 @@ log_path = log
 #
 # (default: 443)
 #listen_port = 443
+
+# Comma-separated extra TLS ports to also listen on, same site/cert/profile as listen_port (e.g.
+# "8443,3010" for a secondary gateway port plus a management-looking port). These are the same surface
+# bound to another port, not a distinct management-interface emulation; dst_port in logged events is
+# what tells them apart.
+#
+# (default: not set)
+#extra_listen_ports = 8443,3010
 
 # Also listen on this plain-HTTP port (same routes/site, no TLS). Local-lab convenience only -- e.g. for
 # tools that don't handle a self-signed cert well -- a real NetScaler ADC/Gateway does not serve this

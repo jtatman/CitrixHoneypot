@@ -261,7 +261,20 @@ found via this testing.
   Local-lab convenience only (tools that don't handle a self-signed cert well); documented as such since a
   real NetScaler ADC/Gateway doesn't serve this surface over plain HTTP. Live-verified: ran the honeypot
   with `--http-port 8080` alongside the TLS listener on a different port, confirmed both answered.
-- Multiple ports (443, 8443, 3010 mgmt), `--tls-profile` CLI flag, health endpoint on localhost only.
+- DONE: multiple TLS ports -- `[honeypot] extra_listen_ports` / `--ports` (comma-separated, e.g.
+  "8443,3010") binds the same `Site`/cert/profile to additional ports alongside the main `-p`/`port`.
+  These are the *same surface* bound to another port, not a distinct management-interface emulation --
+  `dst_port` in the logged event is what tells scans on different ports apart. A real NSIP/CLIP-looking
+  management surface (as CVE-2023-6548 would need) isn't implemented; `3010` is just an illustrative extra
+  port in the roadmap note, not a verified real NetScaler mgmt port.
+- DONE: `--tls-profile` / `[honeypot] tls_profile` -- an appliance profile (`profiles/<name>.yaml`) whose
+  `tls.subject_cn` becomes the cert CN, decoupled from `--profile`'s. Lets you test cert-based
+  fingerprinting tools against a CN that disagrees with the HTTP surface's `--profile`, independently of
+  it. Defaults to the same profile as `--profile` (no behavior change if unset). Live-verified: generated
+  a fresh cert with a throwaway profile's distinct CN while `--profile` stayed on `adc-12.1-vulnerable`,
+  confirmed the serving cert's CN came from `--tls-profile` not `--profile`; also verified 3 TLS ports
+  (`-p` + `--ports`) all serve the same site.
+- health endpoint on localhost only.
 - docker-compose with a network-isolated lab (`internal: true` network) to guarantee no egress.
 
 ## Conventions

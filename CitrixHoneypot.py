@@ -26,6 +26,11 @@ __VERSION__ = '2.0.2'
 __description__ = 'Citrix CVE-2019-19781 Honeypot by MalwareTech'
 
 
+def parse_ports(spec):
+    """Parse a comma-separated port list ('8443,3010') into a list of ints. '' -> []."""
+    return [int(p.strip()) for p in spec.split(',') if p.strip()]
+
+
 def get_options(cfg_options):
     parser = ArgumentParser(description=__description__)
 
@@ -44,10 +49,22 @@ def get_options(cfg_options):
     parser.add_argument('-P', '--profile', type=str, default=cfg_options['profile_name'],
                         help='Appliance profile from profiles/ (default: {})'.format(cfg_options['profile_name']))
 
+    parser.add_argument('--tls-profile', type=str, default=cfg_options['tls_profile_name'],
+                        help='Appliance profile from profiles/ to take the TLS certificate subject CN '
+                             'from, decoupled from --profile (e.g. to test cert-based fingerprinting '
+                             'separately from the HTTP surface). Default: same as --profile.')
+
     parser.add_argument('--http-port', type=int, default=cfg_options['http_port'],
                         help='Also listen on this plain-HTTP port, same routes/site, no TLS (0 = disabled, '
                              'local-lab convenience only -- a real appliance does not serve this over HTTP; '
                              'default: {})'.format(cfg_options['http_port']))
+
+    parser.add_argument('--ports', type=str, default=cfg_options['extra_ports'],
+                        help='Comma-separated extra TLS ports to also listen on, same site/cert/profile as '
+                             '-p/--port (e.g. "8443,3010" for a secondary gateway port plus a management-'
+                             'looking port) -- these are the same surface bound to another port, not a '
+                             'distinct management-interface emulation; dst_port in logged events is what '
+                             'tells them apart. Default: {!r}'.format(cfg_options['extra_ports']))
 
     args = parser.parse_args()
     return args
@@ -77,7 +94,9 @@ def main():
     cfg_options['debug'] = CONFIG.get('honeypot', 'verbosity', fallback='info')
     cfg_options['struggle'] = CONFIG.getboolean('honeypot', 'struggle_check', fallback=False)
     cfg_options['profile_name'] = CONFIG.get('honeypot', 'profile', fallback=DEFAULT_PROFILE)
+    cfg_options['tls_profile_name'] = CONFIG.get('honeypot', 'tls_profile', fallback='')
     cfg_options['http_port'] = CONFIG.getint('honeypot', 'http_port', fallback=0)
+    cfg_options['extra_ports'] = CONFIG.get('honeypot', 'extra_listen_ports', fallback='')
 
     args = get_options(cfg_options)
 
@@ -86,10 +105,17 @@ def main():
     cfg_options['logfile'] = args.logfile
     cfg_options['ssldir'] = args.ssldir
     cfg_options['http_port'] = args.http_port
+    cfg_options['extra_ports'] = args.ports
     try:
         cfg_options['profile'] = load_profile(args.profile)
     except ProfileError as e:
         raise SystemExit('Error: {}'.format(e))
+    tls_cn = cfg_options['profile'].tls_cn
+    if args.tls_profile:
+        try:
+            tls_cn = load_profile(args.tls_profile).tls_cn
+        except ProfileError as e:
+            raise SystemExit('Error: {}'.format(e))
     cfg_options['sensor'] = args.sensor
 
     set_logger(cfg_options)
@@ -97,21 +123,25 @@ def main():
     log.msg(__description__)
     profile = cfg_options['profile']
     log.msg('Profile: {} ({} {})'.format(profile.name, profile.product, profile.build))
-    if ensure_cert(cfg_options['ssldir'], profile.tls_cn):
-        log.msg('Generated a self-signed certificate (CN={}) in {}'.format(profile.tls_cn, cfg_options['ssldir']))
+    if ensure_cert(cfg_options['ssldir'], tls_cn):
+        log.msg('Generated a self-signed certificate (CN={}) in {}'.format(tls_cn, cfg_options['ssldir']))
 
     cfg_options['output_plugins'] = import_plugins(cfg_options)
 
     site = server.Site(Index(cfg_options))
     site.log = mySiteLog
-    endpoint_spec = 'ssl:interface={}:port={}:privateKey={}/key.pem:certKey={}/cert.pem'.format(
-        cfg_options['addr'],
-        cfg_options['port'],
-        cfg_options['ssldir'],
-        cfg_options['ssldir']
-    )
-    log.msg('Listening on {}:{}.'.format(cfg_options['addr'], cfg_options['port']))
-    endpoints.serverFromString(reactor, endpoint_spec).listen(site)
+
+    tls_ports = [cfg_options['port']] + [p for p in parse_ports(cfg_options['extra_ports'])
+                                          if p != cfg_options['port']]
+    for port in tls_ports:
+        endpoint_spec = 'ssl:interface={}:port={}:privateKey={}/key.pem:certKey={}/cert.pem'.format(
+            cfg_options['addr'],
+            port,
+            cfg_options['ssldir'],
+            cfg_options['ssldir']
+        )
+        log.msg('Listening on {}:{}.'.format(cfg_options['addr'], port))
+        endpoints.serverFromString(reactor, endpoint_spec).listen(site)
 
     if cfg_options['http_port']:
         # Local-lab convenience only (e.g. for tools that don't handle a self-signed cert well); a real
