@@ -90,6 +90,13 @@ log_path = log
 # (0 = disabled; default: 0)
 #http_port = 0
 
+# Serve a JSON liveness check on this port, bound to 127.0.0.1 only regardless of out_addr, for
+# local-lab orchestration (e.g. a docker-compose healthcheck). Not part of the emulated surface: never
+# logged as an event.
+#
+# (0 = disabled; default: 0)
+#health_port = 0
+
 # TODO:
 # Enable to log the public IP of the honeypot (useful if listening on 127.0.0.1)
 # IP address is obtained by querying http://myip.threatstream.com

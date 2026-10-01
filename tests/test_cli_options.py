@@ -11,7 +11,7 @@ def base_cfg(**overrides):
     cfg = {
         'addr': '0.0.0.0', 'port': 443, 'logfile': None, 'ssldir': 'ssl',
         'sensor': 'test', 'profile_name': 'adc-12.1-vulnerable', 'tls_profile_name': '',
-        'http_port': 0, 'extra_ports': '',
+        'http_port': 0, 'extra_ports': '', 'health_port': 0,
     }
     cfg.update(overrides)
     return cfg
@@ -64,6 +64,20 @@ def test_extra_ports_from_config_and_cli(monkeypatch):
     monkeypatch.setattr(sys, 'argv', ['CitrixHoneypot.py', '--ports', '9443'])
     args = get_options(base_cfg(extra_ports='8443,3010'))
     assert args.ports == '9443'
+
+
+def test_health_port_disabled_by_default():
+    args = get_options(base_cfg())
+    assert args.health_port == 0
+
+
+def test_health_port_from_config_and_cli(monkeypatch):
+    args = get_options(base_cfg(health_port=9000))
+    assert args.health_port == 9000
+
+    monkeypatch.setattr(sys, 'argv', ['CitrixHoneypot.py', '--health-port', '9001'])
+    args = get_options(base_cfg(health_port=9000))
+    assert args.health_port == 9001
 
 
 @pytest.mark.parametrize('spec,expected', [

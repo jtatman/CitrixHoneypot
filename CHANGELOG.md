@@ -53,6 +53,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ports alongside `-p`/`port` (e.g. "8443,3010")
 * `--tls-profile` / `[honeypot] tls_profile`: take the TLS cert subject CN from a different appliance profile
   than `--profile`, for testing cert-based fingerprinting independently of the HTTP surface
+* Localhost-only health endpoint: `core/health.py`, `[honeypot] health_port` / `--health-port` (0 = disabled).
+  Bound to 127.0.0.1 regardless of `-a`/`--addr`; not part of the emulated surface, never logged as an event
+* `docker-compose.yml`: a network-isolated local lab. Uses a custom bridge network with
+  `com.docker.network.bridge.enable_ip_masquerade: "false"` rather than `internal: true` (which would also
+  block the published ports a honeypot needs for inbound traffic) to block the container's own outbound
+  internet access
 
 ### Changed
 

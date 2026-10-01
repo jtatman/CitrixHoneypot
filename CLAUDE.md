@@ -23,6 +23,7 @@ core/protocol.py       Index(Resource): single render() entry point: build Ctx -
 core/profile.py        Profile dataclass + YAML loader/validator; `Profile.state(cve)` = explicit override > derived from `build` > vulnerable
 core/cvedb.py          fix-version lookup over core/data/cves.json (25 CVEs, vendored from jtatman/citrixscan via tools/extract_cves.py)
 core/tls.py            ensure_cert(): self-signed key/cert generated at startup if missing (CN from the profile)
+core/health.py         HealthCheck(Resource): localhost-only JSON liveness check, not part of the emulated surface
 profiles/              <name>.yaml appliance profiles (select with `--profile` / `[honeypot] profile` / env HONEYPOT_PROFILE)
 core/routes/           (order matters: the list in routes/__init__.py is match order, catch-alls last) declarative route table (Route/Hit/Ctx in __init__.py; one module per CVE/product family, e.g. cve_2019_19781.py; ioc_probes.py is CVE-agnostic attempt/IOC logging; waf_block.py is the opt-in AppFirewall-mimicry catch-all, registered before cve_2019_19781's broad catch-alls but after everything CVE/IOC-specific)
 tests/                 pytest golden tests driving Index.render() with DummyRequest (run from anywhere; conftest chdirs to repo root)
@@ -274,8 +275,26 @@ found via this testing.
   a fresh cert with a throwaway profile's distinct CN while `--profile` stayed on `adc-12.1-vulnerable`,
   confirmed the serving cert's CN came from `--tls-profile` not `--profile`; also verified 3 TLS ports
   (`-p` + `--ports`) all serve the same site.
-- health endpoint on localhost only.
-- docker-compose with a network-isolated lab (`internal: true` network) to guarantee no egress.
+- DONE: localhost-only health endpoint -- `core/health.py`'s `HealthCheck` Resource, wired up via
+  `[honeypot] health_port` / `--health-port` (0 = disabled, default), served on its own `Site` bound to
+  `127.0.0.1` *regardless* of `-a`/`--addr` (so it's never exposed on whatever interface the honeypot
+  surface itself listens on). Returns JSON (`status`, `version`, `profile`, `uptime`); deliberately not
+  part of `core/routes/` -- it's an ops endpoint, so hits are never logged as honeypot events and never
+  touch CVE state. Live-verified: ran the honeypot with `--health-port 9100`, curled it, got the expected
+  JSON body.
+- DONE (compose file written and syntax-validated with `docker compose config`; NOT live-tested --
+  no Docker daemon in this environment -- build/up/healthcheck/actual egress-block are unverified beyond
+  that): `docker-compose.yml`. **Correction of the roadmap's own `internal: true` plan**: verified against
+  Docker's own docs (`docs.docker.com/engine/network/#published-ports`, and a confirmed GitHub issue,
+  moby/moby#36174) that a network with `internal: true` cannot publish ports at all -- exactly what a
+  honeypot needs for inbound scanner traffic to reach it, so that plan would have made the container
+  unreachable. Used the documented alternative instead (`docs.docker.com/engine/network/port-publishing/
+  #masquerade-or-snat-for-outgoing-packets`): a custom bridge network with `driver_opts:
+  com.docker.network.bridge.enable_ip_masquerade: "false"`, which disables the container's own outbound
+  masquerading (so egress has no usable return path) while leaving the DNAT rules behind `ports:`
+  untouched, since those are a separate iptables chain. Also wires up the new health-check endpoint
+  (`HONEYPOT_HEALTH_PORT=9100` env var + a `HEALTHCHECK`-equivalent using the Python already in the
+  `python:3.12-slim` image, since curl isn't installed there) and bind-mounts `ssl/`/`log/`.
 
 ## Conventions
 - Python 3.10+, type hints on new code, `ruff`/`black` defaults, 4-space indent; match surrounding style in files you don't refactor.

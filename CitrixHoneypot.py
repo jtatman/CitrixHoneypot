@@ -16,6 +16,7 @@ from twisted.python import log
 from twisted.web import server
 
 from core.config import CONFIG
+from core.health import HealthCheck
 from core.logfile import set_logger
 from core.profile import DEFAULT_PROFILE, ProfileError, load_profile
 from core.protocol import Index
@@ -66,6 +67,12 @@ def get_options(cfg_options):
                              'distinct management-interface emulation; dst_port in logged events is what '
                              'tells them apart. Default: {!r}'.format(cfg_options['extra_ports']))
 
+    parser.add_argument('--health-port', type=int, default=cfg_options['health_port'],
+                        help='Serve a JSON liveness check on this port, bound to 127.0.0.1 only regardless '
+                             'of -a/--addr, for local-lab orchestration (e.g. a docker-compose healthcheck). '
+                             'Not part of the emulated surface: never logged as an event (0 = disabled, '
+                             'default: {})'.format(cfg_options['health_port']))
+
     args = parser.parse_args()
     return args
 
@@ -97,6 +104,7 @@ def main():
     cfg_options['tls_profile_name'] = CONFIG.get('honeypot', 'tls_profile', fallback='')
     cfg_options['http_port'] = CONFIG.getint('honeypot', 'http_port', fallback=0)
     cfg_options['extra_ports'] = CONFIG.get('honeypot', 'extra_listen_ports', fallback='')
+    cfg_options['health_port'] = CONFIG.getint('honeypot', 'health_port', fallback=0)
 
     args = get_options(cfg_options)
 
@@ -106,6 +114,7 @@ def main():
     cfg_options['ssldir'] = args.ssldir
     cfg_options['http_port'] = args.http_port
     cfg_options['extra_ports'] = args.ports
+    cfg_options['health_port'] = args.health_port
     try:
         cfg_options['profile'] = load_profile(args.profile)
     except ProfileError as e:
@@ -149,6 +158,15 @@ def main():
         http_endpoint_spec = 'tcp:interface={}:port={}'.format(cfg_options['addr'], cfg_options['http_port'])
         log.msg('Also listening on plain HTTP {}:{}.'.format(cfg_options['addr'], cfg_options['http_port']))
         endpoints.serverFromString(reactor, http_endpoint_spec).listen(site)
+
+    if cfg_options['health_port']:
+        # Always 127.0.0.1, regardless of -a/--addr: an ops endpoint, never meant to be reachable from
+        # wherever the honeypot surface itself is exposed.
+        health_site = server.Site(HealthCheck(profile, __VERSION__))
+        health_site.log = mySiteLog
+        health_endpoint_spec = 'tcp:interface=127.0.0.1:port={}'.format(cfg_options['health_port'])
+        log.msg('Serving health checks on 127.0.0.1:{}.'.format(cfg_options['health_port']))
+        endpoints.serverFromString(reactor, health_endpoint_spec).listen(health_site)
 
     reactor.run()   # pylint: disable=no-member
     log.msg('Shutdown requested, exiting...')

@@ -1,0 +1,38 @@
+# Network-isolated local lab. See CLAUDE.md's Phase 4 note on why this uses
+# driver_opts.com.docker.network.bridge.enable_ip_masquerade=false rather than Docker's `internal: true`:
+# an internal network can't publish ports at all (a honeypot needs inbound scanner traffic to reach it),
+# while disabling IP masquerading blocks the container's own outbound internet access (no usable egress -
+# outbound packets would carry an unroutable private source address) without touching the DNAT rules that
+# make published ports work. Matches the ground rule in CLAUDE.md: no outbound calls needed or allowed.
+services:
+  honeypot:
+    build: .
+    image: citrixhoneypot:latest
+    container_name: citrixhoneypot
+    restart: unless-stopped
+    networks:
+      - lab
+    ports:
+      - "443:8443"
+    environment:
+      HONEYPOT_PROFILE: adc-14.1-73.33-vulnerable
+      HONEYPOT_HEALTH_PORT: "9100"
+    volumes:
+      - ./ssl:/CitrixHoneypot/ssl
+      - ./log:/CitrixHoneypot/log
+    healthcheck:
+      # The health endpoint is bound to 127.0.0.1 inside the container regardless of HONEYPOT_OUT_ADDR,
+      # so this only works run from inside the container (as a HEALTHCHECK does) -- curl isn't installed
+      # in python:3.12-slim, so use the Python already there.
+      test: ["CMD", "python", "-c",
+             "import urllib.request as u; u.urlopen('http://127.0.0.1:9100/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  lab:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: "false"
