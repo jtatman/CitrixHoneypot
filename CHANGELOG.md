@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `dispatch()`'s default "patched" fallback no longer leaks a route's `data`/`cookies`/`headers` into the not-found response it's supposed to replace
 * `GET /` (and `/vpn/`, etc.) with a query string no longer 404s -- `Ctx` used to split the raw path into segments without stripping the query string first, breaking on any request with query params (found via nmap's `http-waf-detect`)
 * `output_plugins/sqlite.py` was an empty stub; now a working output plugin
+* Type-1 CVE-2019-19781 scan (`/vpn/../vpns/`) now returns a real HTTP 403, not 200 with a 403-looking body (verified against
+  public write-ups showing `curl -I` returning literal "HTTP/1.1 403 Forbidden" there)
+* HEAD requests on CVE-2019-19781 scan routes now report the correct (non-zero) `Content-Length` matching GET, instead of
+  always reporting `Content-Length: 0`
+* `tools.get_real_ip`/`get_real_port` no longer trust `X-Real-IP`/`X-Real-Port` from any client by default (spoofable); now
+  opt-in via `[honeypot] trust_proxy_headers`
+* `core/logfile.py` no longer monkeypatches `twisted.python.log.FileLogObserver`'s internals; uses a standalone observer
+  registered via the documented `log.startLoggingWithObserver()` instead
 
 ### Added
 

@@ -33,8 +33,12 @@ def test_unknown_path_is_empty(index, send, capture):
 
 
 def test_scan_type1_403(index, send, capture):
-    body, _ = send(index, 'GET', '/vpn/../vpns/')
+    # Real NetScaler Apache sends an actual 403 here (its own directory-listing-forbidden page), not a
+    # 200 with a 403-looking body: confirmed via bleepingcomputer's and mpgn's CVE-2019-19781 write-ups
+    # (curl -I showing literal "HTTP/1.1 403 Forbidden"). See core/routes/cve_2019_19781.py.
+    body, req = send(index, 'GET', '/vpn/../vpns/')
     assert body == page('403.html').replace('{url}', '/vpns/').encode()
+    assert req.responseCode == 403
     (ev,) = capture.events
     assert ev['eventid'] == 'citrix.connection'
     assert ev['message'] == 'Scan type 1'
@@ -71,9 +75,17 @@ def test_traversal_outside_vpns_not_logged(index, send, capture):
     assert capture.events == []
 
 
-def test_head_scan_logged_without_body(index, send, capture):
-    body, _ = send(index, 'HEAD', '/vpn/../vpns/cfg/smb.conf')
-    assert body == b''
+def test_head_scan_reports_correct_content_length(index, send, capture):
+    # Regression: routes used to special-case HEAD to an empty page, which worked out here (Index.render
+    # returning b'') but made send_response compute Content-Length from that empty body -- so a HEAD
+    # request reported Content-Length: 0 even though GET on the same path has a real body. Fixed by not
+    # special-casing HEAD in the route at all: Index.render now returns the same (full) body HEAD or not,
+    # giving the correct Content-Length here; it's real Twisted's Request.render() (not exercised by this
+    # DummyRequest-based harness, see core/routes/cve_2019_19781.py's _scan()) that then discards the
+    # actual bytes before writing to the wire for a HEAD request.
+    body, req = send(index, 'HEAD', '/vpn/../vpns/cfg/smb.conf')
+    assert body == page('smb.conf').encode()
+    assert req.responseHeaders.getRawHeaders(b'content-length') == [str(len(body)).encode()]
     assert capture.events[0]['message'] == 'Scan type 2'
     assert capture.events[0]['request'] == 'HEAD'
 
@@ -84,8 +96,9 @@ def test_head_no_completion_event(index, send, capture):
 
 
 def test_custom_method_handled_like_get(index, send, capture):
-    body, _ = send(index, 'PROPFIND', '/vpn/../vpns/')
+    body, req = send(index, 'PROPFIND', '/vpn/../vpns/')
     assert body == page('403.html').replace('{url}', '/vpns/').encode()
+    assert req.responseCode == 403
     assert capture.events[0]['request'] == 'PROPFIND'
 
 

@@ -61,6 +61,14 @@ log_path = log
 # (default = false)
 #struggle_check = false
 
+# Honour X-Real-IP / X-Real-Port request headers for the logged src_ip/src_port, instead of the TCP
+# connection's own address. These headers are attacker-supplied and trivially spoofable -- only enable
+# this if the honeypot sits behind a trusted reverse proxy that sets them itself (overwriting whatever
+# the client sent), never when exposed directly.
+#
+# (default = false)
+#trust_proxy_headers = false
+
 # ============================================================================
 # Network Specific Options
 # ============================================================================

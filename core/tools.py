@@ -13,14 +13,23 @@ from core.config import CONFIG
 _CONTROL = re_compile(r'[\x00-\x1f\x7f]')
 
 
-def get_real_ip(request):
-    ip = request.getHeader('X-Real-IP')
-    return request.getClientAddress().host if ip is None else ip
+def get_real_ip(request, cfg=None):
+    # X-Real-IP is only honoured when trust_proxy_headers is explicitly enabled: it's attacker-supplied
+    # and trivially spoofable otherwise, and only meaningful if the honeypot sits behind a trusted proxy
+    # that sets it itself (overwriting whatever the client sent).
+    if cfg and cfg.get('trust_proxy_headers'):
+        ip = request.getHeader('X-Real-IP')
+        if ip is not None:
+            return ip
+    return request.getClientAddress().host
 
 
-def get_real_port(request):
-    port = request.getHeader('X-Real-Port')
-    return request.getClientAddress().port if port is None else port
+def get_real_port(request, cfg=None):
+    if cfg and cfg.get('trust_proxy_headers'):
+        port = request.getHeader('X-Real-Port')
+        if port is not None:
+            return port
+    return request.getClientAddress().port
 
 
 def getutctime(unixtime):
@@ -54,9 +63,9 @@ def resolve_url(url):
     return urlunsplit(parts)
 
 
-def logger(request, log_level, msg):
-    ip = get_real_ip(request)
-    port = get_real_port(request)
+def logger(request, log_level, msg, cfg=None):
+    ip = get_real_ip(request, cfg)
+    port = get_real_port(request, cfg)
     # attacker-controlled text: escape control characters to prevent log injection
     msg = _CONTROL.sub(lambda m: '\\x{:02x}'.format(ord(m.group())), msg)
     log.msg('[{}] ({}:{}): {}'.format(log_level, ip, port, msg))

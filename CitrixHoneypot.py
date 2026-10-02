@@ -100,6 +100,7 @@ def main():
     cfg_options['sensor'] = CONFIG.get('honeypot', 'sensor_name', fallback=gethostname())
     cfg_options['debug'] = CONFIG.get('honeypot', 'verbosity', fallback='info')
     cfg_options['struggle'] = CONFIG.getboolean('honeypot', 'struggle_check', fallback=False)
+    cfg_options['trust_proxy_headers'] = CONFIG.getboolean('honeypot', 'trust_proxy_headers', fallback=False)
     cfg_options['profile_name'] = CONFIG.get('honeypot', 'profile', fallback=DEFAULT_PROFILE)
     cfg_options['tls_profile_name'] = CONFIG.get('honeypot', 'tls_profile', fallback='')
     cfg_options['http_port'] = CONFIG.getint('honeypot', 'http_port', fallback=0)

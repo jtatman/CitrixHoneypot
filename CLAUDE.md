@@ -29,7 +29,7 @@ core/routes/           (order matters: the list in routes/__init__.py is match o
 tests/                 pytest golden tests driving Index.render() with DummyRequest (run from anywhere; conftest chdirs to repo root)
 core/tools.py          helpers: url normalisation, IP helpers, event writing, plugin loading
 core/config.py         ConfigParser + env-var override (SECTION_OPTION), reads etc/honeypot.cfg.base, etc/honeypot.cfg, ./honeypot.cfg
-core/logfile.py        Twisted daily log file + UTC formatting (monkeypatches FileLogObserver)
+core/logfile.py        Twisted daily log file + UTC formatting; UTCLogObserver registered via log.startLoggingWithObserver()
 core/output.py         Output plugin base class
 output_plugins/        jsonlog.py, mysql.py (needs mysqlclient), sqlite.py (stdlib sqlite3, schema auto-applied, docs/sql/sqlite3.sql),
                         elasticsearch.py (stdlib urllib, HTTP _doc POST), syslog.py (stdlib socket, RFC3164/CEF or JSON)
@@ -64,7 +64,7 @@ Run from repo root: `responses/` and `etc/` are opened via relative paths.
 Stack: Python 3 (py2 compat cruft remains), Twisted `Resource` with `isLeaf=True`, single 250-line request handler.
 CVE-2019-19781 only; the Citrix fingerprint is thin and dated.
 
-Bugs (**FIXED** in Phase 0/1 unless noted):
+Bugs (**FIXED** in Phase 0/1 unless noted, Phase 5 for bugs 8 and 10):
 0. (found later, worst one) `Index.render` was overridden to call `render_GET` for every method, so `render_HEAD`/`render_POST` were dead code and POST
    exploit payloads were never logged as `citrix.payload`. FIXED: one `render()` dispatches on method via the route table.
 1. `core/protocol.py` `render_GET`: `if self.struggle_check(...): self.send_response(...)` has no `return` - falls through and sends twice/continues.
@@ -76,16 +76,25 @@ Bugs (**FIXED** in Phase 0/1 unless noted):
 5. `render_HEAD` and `render_GET` duplicate ~50 lines of event building; `render()` maps *all* other methods (PUT/DELETE/custom) to GET.
 6. `get_page` uses relative `responses/` path and a class-level dict cache (`page_cache` keys hard-coded).
 7. FIXED. `tools.getutctime`/`logfile.myFLOformatTime` use `datetime.utcfromtimestamp` (deprecated in 3.12, removed later) - use `datetime.fromtimestamp(t, timezone.utc)`.
-8. (OPEN) `tools.get_real_ip/port` trust `X-Real-IP` / `X-Real-Port` from *any* client (spoofable). Fine only if behind a trusted proxy; make opt-in.
+8. FIXED (Phase 5). `tools.get_real_ip/port` trusted `X-Real-IP` / `X-Real-Port` from *any* client (spoofable). Now opt-in via
+   `[honeypot] trust_proxy_headers` (default `false`); off, the headers are ignored entirely and the TCP connection's own
+   address is used. Both functions and `tools.logger()` now take an optional `cfg` param to read the flag.
 9. FIXED. Logging `request.uri` raw: log-injection risk (newlines) in text log; sanitise/escape.
-10. (OPEN) `logfile.py` monkeypatches Twisted internals (`FileLogObserver.emit/formatTime`) - fragile across Twisted versions.
+10. FIXED (Phase 5). `logfile.py` monkeypatched Twisted internals (`FileLogObserver.emit/formatTime`) - fragile across Twisted
+    versions, since those aren't a stable public API. Replaced with `UTCLogObserver`, a small standalone callable registered
+    via `log.startLoggingWithObserver()` -- a documented, supported Twisted entry point -- instead of overriding methods on
+    `log.FileLogObserver` itself. Same UTC timestamp format and output (stdout or `HoneypotDailyLogFile`) as before.
 11. FIXED 2026-09-30 (found via nmap's `http-waf-detect` NSE script). `Ctx.raw_segments`/`Ctx.segments` split the raw path on `/`
     without first stripping the query string, so `GET /?x=1` produced `['?x=1']` instead of the empty root segment list the login
     route matches on -- 404 instead of the login page, on completely ordinary traffic (any GET with query params). Predates this
     fork (same flaw in the original `url_path` computation). See `core/routes/__init__.py`'s `Ctx.build`.
 
-Still open / found during Phase 1: type-1 scan (`/vpn/../vpns/`) returns HTTP 200 with a 403 *body* (no `setResponseCode`; check what the
-scanners actually key on before changing); HEAD responses report `Content-Length: 0` even where GET has a body; type-3 still serves `smb.conf`.
+Phase 1 items resolved in Phase 5: type-1 scan (`/vpn/../vpns/`) now returns a real HTTP 403 (verified against bleepingcomputer's
+and mpgn's CVE-2019-19781 write-ups showing `curl -I` returning literal "HTTP/1.1 403 Forbidden" there -- previously 200 with a
+403-looking *body*, unverified); HEAD responses now report the correct (non-zero) `Content-Length` matching GET, by no longer
+special-casing HEAD to an empty page in the route and letting Twisted's own `Request.render()` strip the body bytes (see
+`core/routes/cve_2019_19781.py`'s `_scan()`). Still open: type-3 still serves `smb.conf` -- the scanner it was meant to match
+(mekoko/CVE-2019-19781) is gone (404s, checked 2026-10-02), so nothing to re-verify it against; left as-is.
 
 Packaging / ops (FIXED in Phase 0 except where noted; MySQL plugin py2 shims left, excluded from ruff):
 - `requirements.txt`: `setuptools<45` pin, `configparser>=3.5` (py2 backport), unused `geoip2`/`maxminddb` (MySQL plugin only), mysqlclient mandatory
@@ -295,6 +304,20 @@ found via this testing.
   untouched, since those are a separate iptables chain. Also wires up the new health-check endpoint
   (`HONEYPOT_HEALTH_PORT=9100` env var + a `HEALTHCHECK`-equivalent using the Python already in the
   `python:3.12-slim` image, since curl isn't installed there) and bind-mounts `ssl/`/`log/`.
+
+**Phase 5 - Harden existing surface (DONE)**
+- DONE: bug 8 (`X-Real-IP`/`X-Real-Port` blind trust) -- `[honeypot] trust_proxy_headers` (default `false`); off, the headers
+  are ignored and the real TCP connection's address is used. See bug 8 above.
+- DONE: bug 10 (fragile `FileLogObserver` monkeypatch) -- replaced with `UTCLogObserver` + `log.startLoggingWithObserver()`.
+  See bug 10 above.
+- DONE: type-1 scan status (200 -> verified real 403) and the HEAD `Content-Length: 0` bug (routes no longer special-case
+  HEAD; Twisted's own `Request.render()` handles it correctly). See the "Phase 1 items resolved in Phase 5" note above.
+  Live-verified all three: `curl -I` on type-1 and type-2 paths shows the correct non-zero `Content-Length` matching GET,
+  with Twisted's own log line confirming it stripped the body ("I think I'll eat it"); type-1 GET/HEAD/custom-method all
+  return 403; `trust_proxy_headers = true` honours a spoofed `X-Real-IP`/`X-Real-Port`, off by default ignores them.
+- Looked at, not changed: type-3's `smb.conf` body (citation gone, nothing to re-verify against, see bug list); the
+  skipped Phase 3 CVEs and fingerprint-fidelity gaps (real per-build header/cookie/asset data, configurable TLS
+  cipher/version profile) remain open for a future phase.
 
 ## Conventions
 - Python 3.10+, type hints on new code, `ruff`/`black` defaults, 4-space indent; match surrounding style in files you don't refactor.

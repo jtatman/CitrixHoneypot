@@ -28,11 +28,11 @@ class Index(Resource):
                         request.getHeader('host') or '', request.getHeader('x-nitro-user') or '',
                         request.getHeader('x-nitro-pass') or '', request.getHeader('rand_key') or '')
 
-        tools.logger(request, 'INFO', '{}: {}'.format(method, ctx.path))
+        tools.logger(request, 'INFO', '{}: {}'.format(method, ctx.path), self.cfg)
         route, hit = dispatch(ctx)
 
         if hit.log_msg:
-            tools.logger(request, hit.log_level, hit.log_msg)
+            tools.logger(request, hit.log_level, hit.log_msg, self.cfg)
         if hit.event is not None:
             self.emit(request, ctx, route, hit)
 
@@ -50,8 +50,8 @@ class Index(Resource):
             'eventid': hit.eventid,
             'timestamp': tools.getutctime(unix_time),
             'unixtime': unix_time,
-            'src_ip': tools.get_real_ip(request),
-            'src_port': tools.get_real_port(request),
+            'src_ip': tools.get_real_ip(request, self.cfg),
+            'src_port': tools.get_real_port(request, self.cfg),
             'dst_ip': tools.getlocalip(),
             'dst_port': self.cfg['port'],
             'sensor': self.cfg['sensor'],

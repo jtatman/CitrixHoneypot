@@ -22,51 +22,35 @@ class HoneypotDailyLogFile(DailyLogFile):
             return '_'.join(map(str, self.toDate(tupledate)))
 
 
-def myFLOemit(self, eventDict):
+def _utc_timestamp(when):
+    """Format a POSIX (UTC) timestamp as '[YYYY-MM-DD HH:MM:SS.ffffffZ]'."""
+    return datetime.fromtimestamp(when, timezone.utc).strftime('[%Y-%m-%d %H:%M:%S.%fZ]')
+
+
+class UTCLogObserver:
+    """Writes log events to `outfile` with a UTC timestamp.
+
+    Deliberately not a twisted.python.log.FileLogObserver subclass with overridden emit()/formatTime():
+    those methods are undocumented/internal, so monkeypatching or overriding them is fragile across
+    Twisted versions. log.startLoggingWithObserver() (used by set_logger() below) is the documented,
+    supported way to install a custom observer callable instead.
     """
-    Format the given log event as text and write it to the output file.
 
-    @param eventDict: a log event
-    @type eventDict: L{dict} mapping L{str} (native string) to L{object}
-    """
+    def __init__(self, outfile):
+        self.outfile = outfile
 
-    # Custom emit for FileLogObserver
-    text = log.textFromEventDict(eventDict)
-    if text is None:
-        return
-    timeStr = self.formatTime(eventDict['time'])
-    fmtDict = {
-        'text': text.replace('\n', '\n\t')
-    }
-    msgStr = log._safeFormat('%(text)s\n', fmtDict)
-    util.untilConcludes(self.write, timeStr + ' ' + msgStr)
-    util.untilConcludes(self.flush)
-
-
-def myFLOformatTime(self, when):
-    """
-    Log time in UTC
-
-    By default it's formatted as an ISO8601-like string (ISO8601 date and
-    ISO8601 time separated by a space). It can be customized using the
-    C{timeFormat} attribute, which will be used as input for the underlying
-    L{datetime.datetime.strftime} call.
-
-    @type when: C{int}
-    @param when: POSIX (ie, UTC) timestamp.
-
-    @rtype: C{str}
-    """
-    timeFormatString = self.timeFormat
-    if timeFormatString is None:
-        timeFormatString = '[%Y-%m-%d %H:%M:%S.%fZ]'
-    return datetime.fromtimestamp(when, timezone.utc).strftime(timeFormatString)
+    def __call__(self, eventDict):
+        text = log.textFromEventDict(eventDict)
+        if text is None:
+            return
+        line = '{} {}\n'.format(_utc_timestamp(eventDict['time']), text.replace('\n', '\n\t'))
+        util.untilConcludes(self.outfile.write, line)
+        util.untilConcludes(self.outfile.flush)
 
 
 def set_logger(cfg_options):
-    log.FileLogObserver.emit = myFLOemit
-    log.FileLogObserver.formatTime = myFLOformatTime
     if cfg_options['logfile'] is None:
-        log.startLogging(stdout)
+        outfile, set_stdout = stdout, True
     else:
-        log.startLogging(HoneypotDailyLogFile.fromFullPath(cfg_options['logfile']), setStdout=False)
+        outfile, set_stdout = HoneypotDailyLogFile.fromFullPath(cfg_options['logfile']), False
+    log.startLoggingWithObserver(UTCLogObserver(outfile), setStdout=set_stdout)
